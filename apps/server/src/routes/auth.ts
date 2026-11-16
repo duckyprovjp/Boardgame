@@ -99,11 +99,16 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     return;
   }
 
-  const { email, password } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email } });
+  const { identifier, password } = parsed.data;
+  const normalizedEmail = identifier.toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [{ email: normalizedEmail }, { username: identifier }],
+    },
+  });
 
   if (!user || !user.passwordHash) {
-    res.status(401).json({ error: 'Email hoặc mật khẩu không đúng' });
+    res.status(401).json({ error: 'Tài khoản hoặc mật khẩu không đúng' });
     return;
   }
   if (user.isBanned) {

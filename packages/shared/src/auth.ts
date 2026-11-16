@@ -25,7 +25,7 @@ export const RegisterSchema = z.object({
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 
 export const LoginSchema = z.object({
-  email: z.string().trim().toLowerCase().email('Email không hợp lệ'),
+  identifier: z.string().trim().min(3, 'Vui lòng nhập email hoặc tên người dùng').max(100),
   password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
 });
 

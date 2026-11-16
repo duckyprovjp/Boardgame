@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { PublicUser } from './auth';
 
-export const GameIdSchema = z.enum(['high-card', 'color-uno', 'meo-no', 'dice-fate']);
+export const GameIdSchema = z.enum(['high-card', 'color-uno', 'meo-no', 'dice-fate', 'poker']);
 export type GameId = z.infer<typeof GameIdSchema>;
 
 export interface GameCatalogItem {
@@ -39,6 +39,13 @@ export const GAME_CATALOG: readonly GameCatalogItem[] = [
     name: 'Xúc Xắc Định Mệnh',
     description: 'Lắc xí ngầu kết hợp thẻ bài xanh đỏ đầy bất ngờ',
     minPlayers: 3,
+    maxPlayers: 8,
+  },
+  {
+    id: 'poker',
+    name: 'Poker (Xì Tố)',
+    description: 'Texas Hold\'em 2 lá tẩy + 5 lá chung, tố/theo/úp bài',
+    minPlayers: 2,
     maxPlayers: 8,
   },
 ] as const;

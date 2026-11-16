@@ -28,6 +28,7 @@ export default function HomePage() {
 
   const [tab, setTab] = useState<AuthTab>('login');
   const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [avatarId, setAvatarId] = useState('fox');
@@ -125,7 +126,7 @@ export default function HomePage() {
     try {
       let res: { user: AuthUser };
       if (tab === 'login') {
-        res = await authApi.login({ email, password });
+        res = await authApi.login({ identifier, password });
       } else if (tab === 'register') {
         res = await authApi.register({ email, password, username, avatarId });
       } else {
@@ -265,7 +266,23 @@ export default function HomePage() {
             )}
 
             <form onSubmit={handleAuthSubmit} className="space-y-4">
-              {tab !== 'guest' && (
+              {tab === 'login' && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                    Email hoặc Tên người dùng
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="nguoi_choi@example.com hoặc ten_nguoi_choi"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-emerald-400"
+                  />
+                </div>
+              )}
+
+              {tab === 'register' && (
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-slate-300">Email</label>
                   <input

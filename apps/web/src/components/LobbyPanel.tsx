@@ -14,6 +14,7 @@ import {
   type HighCardPlayerView,
   type MatchStatusPayload,
   type MeoNoPlayerView,
+  type PokerPlayerView,
   type PublicRoomSummary,
   type RoomChatMessage,
   type RoomInvitePayload,
@@ -25,6 +26,7 @@ import { ColorUnoBoard } from '@/components/games/ColorUnoBoard';
 import { DiceFateBoard } from '@/components/games/DiceFateBoard';
 import { HighCardBoard } from '@/components/games/HighCardBoard';
 import { MeoNoBoard } from '@/components/games/MeoNoBoard';
+import { PokerBoard } from '@/components/games/PokerBoard';
 import { friendsApi, roomsApi } from '@/lib/api';
 import { playSound } from '@/lib/sound';
 
@@ -50,7 +52,12 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
   const [invitePopup, setInvitePopup] = useState<RoomInvitePayload | null>(null);
   const [onlineFriends, setOnlineFriends] = useState<FriendInfo[]>([]);
   const [gameView, setGameView] = useState<
-    HighCardPlayerView | ColorUnoPlayerView | MeoNoPlayerView | DiceFatePlayerView | null
+    | HighCardPlayerView
+    | ColorUnoPlayerView
+    | MeoNoPlayerView
+    | DiceFatePlayerView
+    | PokerPlayerView
+    | null
   >(null);
   const [turnEndsAt, setTurnEndsAt] = useState<number | null>(null);
   const [matchStatus, setMatchStatus] = useState<MatchStatusPayload>({ status: 'idle' });
@@ -70,7 +77,12 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
     };
 
     const onGameState = (payload: {
-      view: HighCardPlayerView | ColorUnoPlayerView | MeoNoPlayerView | DiceFatePlayerView;
+      view:
+        | HighCardPlayerView
+        | ColorUnoPlayerView
+        | MeoNoPlayerView
+        | DiceFatePlayerView
+        | PokerPlayerView;
       turnEndsAt: number | null;
     }) => {
       setGameView(payload.view);
@@ -526,9 +538,11 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
                 avatarId: p.avatarId,
                 isCurrentTurn: gameView.currentTurnPlayerId === p.id,
                 sublabel:
-                  'lives' in p
-                    ? `❤️ ${p.lives} · 🛡️ ${p.shields} · ${p.cardCount} lá`
-                    : `${p.cardCount} lá trên tay`,
+                  'chips' in p
+                    ? `🪙 ${p.chips} chip · Cược: ${p.bet}${p.folded ? ' (Úp)' : ''}`
+                    : 'lives' in p
+                      ? `❤️ ${p.lives} · 🛡️ ${p.shields} · ${p.cardCount} lá`
+                      : `${p.cardCount} lá trên tay`,
                 badge:
                   'calledLastCard' in p && p.calledLastCard && p.cardCount === 1
                     ? 'CÒN 1 LÁ!'
@@ -555,6 +569,9 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
             )}
             {gameView.gameId === 'dice-fate' && (
               <DiceFateBoard view={gameView} onAction={handleGameAction} />
+            )}
+            {gameView.gameId === 'poker' && (
+              <PokerBoard view={gameView} onAction={handleGameAction} />
             )}
           </GameTable>
       ) : room.status === 'starting' ? (

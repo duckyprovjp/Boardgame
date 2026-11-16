@@ -42,11 +42,16 @@ describe('auth & profile schemas', () => {
     expect(parsed.success).toBe(true);
   });
 
-  it('validates login schema', () => {
-    const parsed = LoginSchema.safeParse({
-      email: 'a@b.com',
+  it('validates login schema with email or username', () => {
+    const withEmail = LoginSchema.safeParse({
+      identifier: 'a@b.com',
       password: '123',
     });
-    expect(parsed.success).toBe(true);
+    const withUsername = LoginSchema.safeParse({
+      identifier: 'player_one',
+      password: '123',
+    });
+    expect(withEmail.success).toBe(true);
+    expect(withUsername.success).toBe(true);
   });
 });

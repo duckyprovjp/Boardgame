@@ -7,6 +7,7 @@ export * from './games/colorUno';
 export * from './games/diceFate';
 export * from './games/highCard';
 export * from './games/meoNo';
+export * from './games/poker';
 export * from './matchmaking';
 export * from './progression';
 export * from './rooms';

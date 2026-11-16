@@ -3,6 +3,7 @@ import {
   DiceFateGame,
   HighCardGame,
   MeoNoGame,
+  PokerGame,
   type GameId,
   type GameModule,
 } from '@boardgame/shared';
@@ -13,6 +14,7 @@ const GAME_REGISTRY: Partial<Record<GameId, GameModule<any, any, any, any>>> = {
   'color-uno': ColorUnoGame,
   'meo-no': MeoNoGame,
   'dice-fate': DiceFateGame,
+  poker: PokerGame,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
