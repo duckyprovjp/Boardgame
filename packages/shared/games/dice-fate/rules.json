@@ -1,0 +1,154 @@
+{
+  "startingLives": 3,
+  "maxLives": 5,
+  "startingHandSize": 4,
+  "dieFaces": [
+    {
+      "id": "draw_card",
+      "label": "Rút Định Mệnh",
+      "emoji": "🃏",
+      "description": "Rút thêm 1 lá bài định mệnh",
+      "effect": { "type": "DRAW_CARD", "count": 1 }
+    },
+    {
+      "id": "safe_turn",
+      "label": "Bình An",
+      "emoji": "🍀",
+      "description": "Lượt an toàn, không có biến cố",
+      "effect": { "type": "NOOP" }
+    },
+    {
+      "id": "heal_one",
+      "label": "Hồi Sinh",
+      "emoji": "💚",
+      "description": "Hồi 1 mạng (tối đa 5 mạng)",
+      "effect": { "type": "HEAL", "amount": 1 }
+    },
+    {
+      "id": "everyone_lose_one",
+      "label": "Thiên Tai",
+      "emoji": "🌋",
+      "description": "Tất cả người chơi đang sống mất 1 mạng",
+      "effect": { "type": "ALL_LOSE_LIFE", "amount": 1 }
+    },
+    {
+      "id": "target_penalty",
+      "label": "Chỉ Định",
+      "emoji": "🎯",
+      "description": "Chọn 1 người chơi khác bị mất 1 mạng",
+      "effect": { "type": "TARGET_LOSE_LIFE", "amount": 1 }
+    },
+    {
+      "id": "ban_red",
+      "label": "Phong Ấn Đỏ",
+      "emoji": "🚫",
+      "description": "Cấm đánh thẻ Đỏ trong vòng này",
+      "effect": { "type": "BAN_DECK", "deck": "red" }
+    }
+  ],
+  "cards": [
+    {
+      "id": "green_shield",
+      "deck": "green",
+      "name": "Khiên Bảo Hộ",
+      "emoji": "🛡️",
+      "description": "Chặn 1 lần mất mạng tiếp theo",
+      "copies": 4,
+      "requiresTarget": false,
+      "effect": { "type": "ADD_SHIELD", "amount": 1 }
+    },
+    {
+      "id": "green_cancel",
+      "deck": "green",
+      "name": "Hoá Giải",
+      "emoji": "✨",
+      "description": "Huỷ bỏ 1 thẻ Đỏ vừa được đánh ra",
+      "copies": 5,
+      "requiresTarget": false,
+      "effect": { "type": "CANCEL_RED" }
+    },
+    {
+      "id": "green_heal",
+      "deck": "green",
+      "name": "Thuốc Tiên",
+      "emoji": "🧪",
+      "description": "Hồi ngay 1 mạng",
+      "copies": 4,
+      "requiresTarget": false,
+      "effect": { "type": "HEAL", "amount": 1 }
+    },
+    {
+      "id": "green_swap",
+      "deck": "green",
+      "name": "Hoán Đổi",
+      "emoji": "🔄",
+      "description": "Đổi ngẫu nhiên 1 lá bài với người chơi khác",
+      "copies": 3,
+      "requiresTarget": true,
+      "effect": { "type": "SWAP_CARD_RANDOM" }
+    },
+    {
+      "id": "green_peek",
+      "deck": "green",
+      "name": "Thấu Thị",
+      "emoji": "👁️",
+      "description": "Xem bí mật bài trên tay của 1 đối thủ",
+      "copies": 3,
+      "requiresTarget": true,
+      "effect": { "type": "PEEK_HAND" }
+    },
+    {
+      "id": "red_strike",
+      "deck": "red",
+      "name": "Đòn Chí Mạng",
+      "emoji": "⚔️",
+      "description": "Mục tiêu bị mất 1 mạng",
+      "copies": 5,
+      "requiresTarget": true,
+      "effect": { "type": "LOSE_LIFE", "amount": 1 }
+    },
+    {
+      "id": "red_dare",
+      "deck": "red",
+      "name": "Thử Thách Định Mệnh",
+      "emoji": "🎭",
+      "description": "Hiện thử thách vui cho mục tiêu trước cả bàn",
+      "copies": 4,
+      "requiresTarget": true,
+      "effect": {
+        "type": "DARE_TEXT",
+        "prompt": "Thử thách: Kể tên 1 món ăn bạn thích nhất hoặc thú nhận 1 bí mật nhỏ!"
+      }
+    },
+    {
+      "id": "red_steal",
+      "deck": "red",
+      "name": "Cướp Bài",
+      "emoji": "🦊",
+      "description": "Cướp ngẫu nhiên 1 lá bài từ mục tiêu",
+      "copies": 4,
+      "requiresTarget": true,
+      "effect": { "type": "STEAL_CARD" }
+    },
+    {
+      "id": "red_skip",
+      "deck": "red",
+      "name": "Khoá Lượt",
+      "emoji": "⛓️",
+      "description": "Mục tiêu bị mất lượt kế tiếp",
+      "copies": 3,
+      "requiresTarget": true,
+      "effect": { "type": "SKIP_NEXT" }
+    },
+    {
+      "id": "red_curse",
+      "deck": "red",
+      "name": "Lời Nguyền",
+      "emoji": "💀",
+      "description": "Mục tiêu bị mất 2 mạng",
+      "copies": 2,
+      "requiresTarget": true,
+      "effect": { "type": "LOSE_LIFE", "amount": 2 }
+    }
+  ]
+}

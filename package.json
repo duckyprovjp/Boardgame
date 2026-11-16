@@ -1,0 +1,26 @@
+{
+  "name": "my-boardgame",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Realtime multiplayer card & party games platform",
+  "scripts": {
+    "dev": "pnpm --filter @boardgame/shared build && pnpm -r --parallel dev",
+    "build": "pnpm --filter @boardgame/shared build && pnpm --filter @boardgame/server build && pnpm --filter @boardgame/web build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @boardgame/server db:generate",
+    "db:push": "pnpm --filter @boardgame/server db:push"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^3.0.4"
+  }
+}
