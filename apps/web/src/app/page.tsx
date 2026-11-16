@@ -24,6 +24,7 @@ export default function HomePage() {
   const socketRef = useRef<Socket | null>(null);
   const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [socketToken, setSocketToken] = useState<string | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const [tab, setTab] = useState<AuthTab>('login');
@@ -55,6 +56,7 @@ export default function HomePage() {
       .me()
       .then((res) => {
         setUser(res.user);
+        setSocketToken(res.socketToken ?? null);
         setEditUsername(res.user.username);
         setEditAvatarId(res.user.avatarId);
       })
@@ -79,7 +81,7 @@ export default function HomePage() {
       return;
     }
 
-    const socket = createSocket();
+    const socket = createSocket(socketToken);
     socketRef.current = socket;
     setSocketInstance(socket);
 
@@ -116,7 +118,7 @@ export default function HomePage() {
       socketRef.current = null;
       setSocketInstance(null);
     };
-  }, [user]);
+  }, [user, socketToken]);
 
   const handleAuthSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -124,7 +126,7 @@ export default function HomePage() {
     setSubmitting(true);
 
     try {
-      let res: { user: AuthUser };
+      let res: { user: AuthUser; socketToken?: string };
       if (tab === 'login') {
         res = await authApi.login({ identifier, password });
       } else if (tab === 'register') {
@@ -136,6 +138,7 @@ export default function HomePage() {
         });
       }
       setUser(res.user);
+      setSocketToken(res.socketToken ?? null);
       setEditUsername(res.user.username);
       setEditAvatarId(res.user.avatarId);
     } catch (err) {

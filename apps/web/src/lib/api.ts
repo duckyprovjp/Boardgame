@@ -42,19 +42,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const authApi = {
-  me: () => request<{ user: AuthUser }>('/api/auth/me'),
+  me: () => request<{ user: AuthUser; socketToken?: string }>('/api/auth/me'),
   register: (body: RegisterInput) =>
-    request<{ user: AuthUser }>('/api/auth/register', {
+    request<{ user: AuthUser; socketToken?: string }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   login: (body: LoginInput) =>
-    request<{ user: AuthUser }>('/api/auth/login', {
+    request<{ user: AuthUser; socketToken?: string }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   guest: (body: Partial<GuestLoginInput> = {}) =>
-    request<{ user: AuthUser }>('/api/auth/guest', {
+    request<{ user: AuthUser; socketToken?: string }>('/api/auth/guest', {
       method: 'POST',
       body: JSON.stringify(body),
     }),

@@ -9,10 +9,11 @@ function getSocketUrl(): string {
   throw new Error('NEXT_PUBLIC_SOCKET_URL is not configured');
 }
 
-export function createSocket(): Socket {
+export function createSocket(socketToken?: string | null): Socket {
   return io(getSocketUrl(), {
     withCredentials: true,
     transports: ['websocket', 'polling'],
     autoConnect: true,
+    auth: socketToken ? { token: socketToken } : undefined,
   });
 }

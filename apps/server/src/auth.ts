@@ -102,6 +102,32 @@ export function clearSessionCookie(res: Response): void {
   res.clearCookie(SESSION_COOKIE_NAME, getSessionCookieOptions());
 }
 
+function getSocketSigningKey(): string {
+  return process.env.SOCKET_TOKEN_SECRET || process.env.DATABASE_URL || 'dev-socket-secret';
+}
+
+export function signSocketToken(userId: string): string {
+  const exp = Date.now() + 24 * 60 * 60 * 1000;
+  const payload = `${userId}.${exp}`;
+  const sig = crypto.createHmac('sha256', getSocketSigningKey()).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+export function verifySocketToken(token: string): string | null {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [userId, expStr, sig] = parts as [string, string, string];
+  const exp = Number(expStr);
+  if (!userId || !Number.isFinite(exp) || exp <= Date.now()) return null;
+  const expected = crypto
+    .createHmac('sha256', getSocketSigningKey())
+    .update(`${userId}.${expStr}`)
+    .digest('hex');
+  if (sig.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  return userId;
+}
+
 export async function requireAuth(
   req: AuthenticatedRequest,
   res: Response,

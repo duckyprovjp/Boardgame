@@ -15,6 +15,7 @@ import {
   deleteSessionByToken,
   getUserFromSessionToken,
   setSessionCookie,
+  signSocketToken,
 } from '../auth';
 import { prisma } from '../db';
 import { containsProfanity } from '../safety/profanity';
@@ -87,7 +88,7 @@ authRouter.post('/register', authLimiter, async (req, res) => {
 
   const token = await createSession(user.id);
   setSessionCookie(res, token);
-  res.status(201).json({ user: toAuthUser(user) });
+  res.status(201).json({ user: toAuthUser(user), socketToken: signSocketToken(user.id) });
 });
 
 authRouter.post('/login', authLimiter, async (req, res) => {
@@ -124,7 +125,7 @@ authRouter.post('/login', authLimiter, async (req, res) => {
 
   const token = await createSession(user.id);
   setSessionCookie(res, token);
-  res.json({ user: toAuthUser(user) });
+  res.json({ user: toAuthUser(user), socketToken: signSocketToken(user.id) });
 });
 
 authRouter.post('/guest', authLimiter, async (req, res) => {
@@ -161,7 +162,7 @@ authRouter.post('/guest', authLimiter, async (req, res) => {
 
   const token = await createSession(user.id);
   setSessionCookie(res, token);
-  res.status(201).json({ user: toAuthUser(user) });
+  res.status(201).json({ user: toAuthUser(user), socketToken: signSocketToken(user.id) });
 });
 
 authRouter.post('/logout', async (req, res) => {
@@ -187,5 +188,5 @@ authRouter.get('/me', async (req, res) => {
     return;
   }
 
-  res.json({ user });
+  res.json({ user, socketToken: signSocketToken(user.id) });
 });

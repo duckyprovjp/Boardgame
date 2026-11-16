@@ -10,7 +10,12 @@ import {
   SOCKET_EVENTS,
   type AuthUser,
 } from '@boardgame/shared';
-import { SESSION_COOKIE_NAME, getUserFromSessionToken, parseCookieHeader } from './auth';
+import {
+  SESSION_COOKIE_NAME,
+  getUserFromSessionToken,
+  parseCookieHeader,
+  verifySocketToken,
+} from './auth';
 import { prisma } from './db';
 import { env } from './env';
 import { PresenceTracker } from './presence';
@@ -103,19 +108,38 @@ io.use(async (socket, next) => {
   try {
     const cookies = parseCookieHeader(socket.handshake.headers.cookie);
     const token = cookies[SESSION_COOKIE_NAME];
-    if (!token) {
-      next(new Error('UNAUTHORIZED'));
-      return;
+    if (token) {
+      const user = await getUserFromSessionToken(token);
+      if (user) {
+        socket.data.user = user;
+        next();
+        return;
+      }
     }
 
-    const user = await getUserFromSessionToken(token);
-    if (!user) {
-      next(new Error('UNAUTHORIZED'));
-      return;
+    const authToken = socket.handshake.auth?.token;
+    if (typeof authToken === 'string' && authToken) {
+      const userId = verifySocketToken(authToken);
+      if (userId) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, username: true, avatarId: true, isGuest: true, email: true, isBanned: true },
+        });
+        if (dbUser && !dbUser.isBanned) {
+          socket.data.user = {
+            id: dbUser.id,
+            username: dbUser.username,
+            avatarId: dbUser.avatarId,
+            isGuest: dbUser.isGuest,
+            email: dbUser.email,
+          };
+          next();
+          return;
+        }
+      }
     }
 
-    socket.data.user = user;
-    next();
+    next(new Error('UNAUTHORIZED'));
   } catch {
     next(new Error('UNAUTHORIZED'));
   }
