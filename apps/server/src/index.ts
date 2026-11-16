@@ -27,9 +27,12 @@ import { createSafetyRouter } from './routes/safety';
 const app = express();
 const server = http.createServer(app);
 
+// Trust Render / reverse proxy headers (X-Forwarded-For, X-Forwarded-Proto) for rate limiting and secure cookies.
+app.set('trust proxy', 1);
+
 app.use(
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: env.WEB_ORIGIN,
     credentials: true,
   }),
 );
@@ -70,11 +73,15 @@ app.get('/health/db', async (_req, res) => {
   }
 });
 
+// Single-instance Socket.io server.
+// When scaling horizontally beyond 1 instance, attach @socket.io/redis-adapter here using REDIS_URL
+// (e.g. io.adapter(createAdapter(pubClient, subClient))) and enable sticky sessions at the load balancer.
 const io = new Server(server, {
   cors: {
-    origin: env.CORS_ORIGIN,
+    origin: env.WEB_ORIGIN,
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
 });
 
 const presenceTracker = new PresenceTracker();
@@ -172,6 +179,6 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(env.PORT, () => {
-  console.log(`Server listening on http://localhost:${env.PORT}`);
+server.listen(env.PORT, '0.0.0.0', () => {
+  console.log(`Server listening on 0.0.0.0:${env.PORT}`);
 });

@@ -15,10 +15,17 @@ import type {
   UserSearchResult,
 } from '@boardgame/shared';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+function getApiUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (url) return url.replace(/\/+$/, '');
+  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:4000`;
+  }
+  throw new Error('NEXT_PUBLIC_API_URL is not configured');
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${getApiUrl()}${path}`, {
     ...options,
     credentials: 'include',
     headers: {

@@ -1,33 +1,22 @@
 services:
   - type: web
     name: boardgame-server
-    runtime: docker
+    runtime: node
+    rootDir: apps/server
     plan: free
-    dockerfilePath: ./apps/server/Dockerfile
-    dockerContext: .
+    buildCommand: cd ../.. && pnpm install --frozen-lockfile && pnpm build:server && pnpm --filter @boardgame/server db:migrate:deploy
+    startCommand: pnpm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "4000"
       - key: DATABASE_URL
         sync: false
-      - key: CORS_ORIGIN
+      - key: DIRECT_URL
         sync: false
-
-  - type: web
-    name: boardgame-web
-    runtime: docker
-    plan: free
-    dockerfilePath: ./apps/web/Dockerfile
-    dockerContext: .
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "3000"
-      - key: NEXT_PUBLIC_API_URL
+      - key: SESSION_SECRET
         sync: false
-      - key: NEXT_PUBLIC_SOCKET_URL
+      - key: WEB_ORIGIN
+        sync: false
+      - key: COOKIE_DOMAIN
         sync: false

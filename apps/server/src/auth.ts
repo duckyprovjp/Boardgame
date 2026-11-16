@@ -10,8 +10,24 @@ export interface AuthenticatedRequest extends Request {
   user?: AuthUser;
 }
 
+function getSessionSecret(): string {
+  return process.env.SESSION_SECRET?.trim() || 'dev-session-secret-change-in-production';
+}
+
+function getSessionCookieOptions() {
+  const isProd = process.env.NODE_ENV === 'production';
+  const domain = process.env.COOKIE_DOMAIN?.trim() || undefined;
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: isProd,
+    path: '/',
+    ...(domain ? { domain } : {}),
+  };
+}
+
 export function hashSessionToken(rawToken: string): string {
-  return crypto.createHash('sha256').update(rawToken).digest('hex');
+  return crypto.createHmac('sha256', getSessionSecret()).update(rawToken).digest('hex');
 }
 
 export function parseCookieHeader(cookieHeader?: string): Record<string, string> {
@@ -77,21 +93,13 @@ export async function deleteSessionByToken(rawToken: string): Promise<void> {
 
 export function setSessionCookie(res: Response, rawToken: string): void {
   res.cookie(SESSION_COOKIE_NAME, rawToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    ...getSessionCookieOptions(),
     maxAge: SESSION_TTL_MS,
-    path: '/',
   });
 }
 
 export function clearSessionCookie(res: Response): void {
-  res.clearCookie(SESSION_COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-  });
+  res.clearCookie(SESSION_COOKIE_NAME, getSessionCookieOptions());
 }
 
 export async function requireAuth(
