@@ -40,9 +40,11 @@ const EnvSchema = z
       data.WEB_ORIGIN ??
       data.CORS_ORIGIN ??
       (data.NODE_ENV === 'production' ? '' : 'http://localhost:3000')
-    )
-      .trim()
-      .replace(/\/+$/, '');
+    ).trim();
+    const allowedOrigins = rawOrigin
+      .split(',')
+      .map((o) => o.trim().replace(/\/+$/, ''))
+      .filter(Boolean);
     const cookieDomain = data.COOKIE_DOMAIN?.trim() || undefined;
     const sessionSecret =
       data.SESSION_SECRET?.trim() || 'dev-session-secret-change-in-production';
@@ -50,7 +52,8 @@ const EnvSchema = z
     return {
       NODE_ENV: data.NODE_ENV,
       PORT: data.PORT,
-      WEB_ORIGIN: rawOrigin,
+      WEB_ORIGIN: allowedOrigins[0] ?? '',
+      ALLOWED_ORIGINS: allowedOrigins,
       COOKIE_DOMAIN: cookieDomain,
       SESSION_SECRET: sessionSecret,
       DATABASE_URL: data.DATABASE_URL,

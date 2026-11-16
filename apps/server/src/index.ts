@@ -37,7 +37,7 @@ app.set('trust proxy', 1);
 
 app.use(
   cors({
-    origin: env.WEB_ORIGIN,
+    origin: env.ALLOWED_ORIGINS,
     credentials: true,
   }),
 );
@@ -83,10 +83,10 @@ app.get('/health/db', async (_req, res) => {
 // (e.g. io.adapter(createAdapter(pubClient, subClient))) and enable sticky sessions at the load balancer.
 const io = new Server(server, {
   cors: {
-    origin: env.WEB_ORIGIN,
+    origin: env.ALLOWED_ORIGINS,
     credentials: true,
   },
-  transports: ['websocket', 'polling'],
+  transports: ['polling', 'websocket'],
 });
 
 const presenceTracker = new PresenceTracker();
