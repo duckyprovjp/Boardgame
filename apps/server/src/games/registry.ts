@@ -1,4 +1,5 @@
 import {
+  BlackjackGame,
   ColorUnoGame,
   DiceFateGame,
   HighCardGame,
@@ -15,6 +16,7 @@ const GAME_REGISTRY: Partial<Record<GameId, GameModule<any, any, any, any>>> = {
   'meo-no': MeoNoGame,
   'dice-fate': DiceFateGame,
   poker: PokerGame,
+  blackjack: BlackjackGame,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

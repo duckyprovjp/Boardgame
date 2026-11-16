@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import type { PublicUser } from './auth';
 
-export const GameIdSchema = z.enum(['high-card', 'color-uno', 'meo-no', 'dice-fate', 'poker']);
+export const GameIdSchema = z.enum([
+  'high-card',
+  'color-uno',
+  'meo-no',
+  'dice-fate',
+  'poker',
+  'blackjack',
+]);
 export type GameId = z.infer<typeof GameIdSchema>;
 
 export interface GameCatalogItem {
@@ -47,6 +54,13 @@ export const GAME_CATALOG: readonly GameCatalogItem[] = [
     description: 'Texas Hold\'em 2 lá tẩy + 5 lá chung, tố/theo/úp bài',
     minPlayers: 2,
     maxPlayers: 8,
+  },
+  {
+    id: 'blackjack',
+    name: 'Blackjack (Xì Dách)',
+    description: 'Rút bài đạt gần 21 điểm nhất mà không bị Quắc (>21)',
+    minPlayers: 2,
+    maxPlayers: 7,
   },
 ] as const;
 

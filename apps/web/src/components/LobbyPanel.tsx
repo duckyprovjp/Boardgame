@@ -7,6 +7,7 @@ import {
   SOCKET_EVENTS,
   getAvatarById,
   getGameCatalogItem,
+  type BlackjackPlayerView,
   type ColorUnoPlayerView,
   type DiceFatePlayerView,
   type FriendInfo,
@@ -22,6 +23,7 @@ import {
   type RoomVisibility,
 } from '@boardgame/shared';
 import { GameTable, type GameTableSeat } from '@/components/GameTable';
+import { BlackjackBoard } from '@/components/games/BlackjackBoard';
 import { ColorUnoBoard } from '@/components/games/ColorUnoBoard';
 import { DiceFateBoard } from '@/components/games/DiceFateBoard';
 import { HighCardBoard } from '@/components/games/HighCardBoard';
@@ -57,6 +59,7 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
     | MeoNoPlayerView
     | DiceFatePlayerView
     | PokerPlayerView
+    | BlackjackPlayerView
     | null
   >(null);
   const [turnEndsAt, setTurnEndsAt] = useState<number | null>(null);
@@ -82,7 +85,8 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
         | ColorUnoPlayerView
         | MeoNoPlayerView
         | DiceFatePlayerView
-        | PokerPlayerView;
+        | PokerPlayerView
+        | BlackjackPlayerView;
       turnEndsAt: number | null;
     }) => {
       setGameView(payload.view);
@@ -572,6 +576,9 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
             )}
             {gameView.gameId === 'poker' && (
               <PokerBoard view={gameView} onAction={handleGameAction} />
+            )}
+            {gameView.gameId === 'blackjack' && (
+              <BlackjackBoard view={gameView} onAction={handleGameAction} />
             )}
           </GameTable>
       ) : room.status === 'starting' ? (

@@ -3,6 +3,7 @@ export * from './avatars';
 export * from './events';
 export * from './friends';
 export * from './game';
+export * from './games/blackjack';
 export * from './games/colorUno';
 export * from './games/diceFate';
 export * from './games/highCard';
