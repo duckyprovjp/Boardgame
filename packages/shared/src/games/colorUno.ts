@@ -26,6 +26,17 @@ export interface UnoCard {
 
 export interface ColorUnoOptions {
   rng?: () => number;
+  roundsMode?: 'single' | '500';
+  turnTimerSec?: number;
+  stackDrawCards?: boolean;
+  forcedPlayAfterDraw?: boolean;
+}
+
+export interface Wd4ChallengeState {
+  offenderId: string;
+  victimId: string;
+  prevColor: UnoColor;
+  wasLegal: boolean;
 }
 
 export interface ColorUnoState {
@@ -33,12 +44,19 @@ export interface ColorUnoState {
   deck: UnoCard[];
   discardPile: UnoCard[];
   hands: Record<string, UnoCard[]>;
+  scores: Record<string, number>;
+  roundNumber: number;
+  roundsMode: 'single' | '500';
+  stackDrawCards: boolean;
+  forcedPlayAfterDraw: boolean;
+  pendingDrawCount: number;
   activeColor: UnoColor;
   direction: 1 | -1;
   turnIndex: number;
   drawnCardId: string | null;
   lastCardCalled: Record<string, boolean>;
-  phase: 'playing' | 'finished';
+  wd4Challenge: Wd4ChallengeState | null;
+  phase: 'playing' | 'wd4_challenge' | 'finished';
   winnerIds: string[];
   actionLog: GameActionLogEntry[];
 }
@@ -48,25 +66,34 @@ export type ColorUnoAction =
   | { type: 'DRAW_CARD' }
   | { type: 'PASS_TURN' }
   | { type: 'CALL_LAST_CARD' }
-  | { type: 'CATCH_LAST_CARD'; targetId: string };
+  | { type: 'CATCH_LAST_CARD'; targetId: string }
+  | { type: 'CHALLENGE_WD4' }
+  | { type: 'DECLINE_WD4' };
 
 export interface ColorUnoPlayerView {
   gameId: 'color-uno';
-  phase: 'playing' | 'finished';
+  phase: 'playing' | 'wd4_challenge' | 'finished';
+  roundNumber: number;
+  roundsMode: 'single' | '500';
+  pendingDrawCount: number;
   currentTurnPlayerId: string | null;
   myPlayerId: string;
   myHand: UnoCard[];
   topCard: UnoCard;
+  recentDiscard: UnoCard[];
   activeColor: UnoColor;
   direction: 1 | -1;
   deckCount: number;
   drawnCardId: string | null;
+  wd4Prompt: { offenderUsername: string; victimId: string } | null;
   legalActions: ColorUnoAction[];
   players: Array<{
     id: string;
     username: string;
     avatarId: string;
+    level: number;
     cardCount: number;
+    score: number;
     calledLastCard: boolean;
   }>;
   actionLog: GameActionLogEntry[];
@@ -147,7 +174,18 @@ function getCardPoints(card: UnoCard): number {
   return Number(card.kind);
 }
 
-function isCardPlayable(card: UnoCard, topCard: UnoCard, activeColor: UnoColor): boolean {
+function isCardPlayable(
+  card: UnoCard,
+  topCard: UnoCard,
+  activeColor: UnoColor,
+  pendingDrawCount: number,
+  stackDrawCards: boolean,
+): boolean {
+  if (pendingDrawCount > 0 && stackDrawCards) {
+    if (topCard.kind === 'draw_two' && card.kind === 'draw_two') return true;
+    if (topCard.kind === 'wild_draw_four' && card.kind === 'wild_draw_four') return true;
+    return false;
+  }
   if (card.color === 'wild') return true;
   if (card.color === activeColor) return true;
   if (card.kind === topCard.kind) return true;
@@ -191,6 +229,106 @@ function advanceIndex(current: number, steps: number, direction: 1 | -1, total: 
   return (((current + steps * direction) % total) + total) % total;
 }
 
+function dealRound(
+  players: GamePlayer[],
+  scores: Record<string, number>,
+  roundNumber: number,
+  roundsMode: 'single' | '500',
+  stackDrawCards: boolean,
+  forcedPlayAfterDraw: boolean,
+  actionLog: GameActionLogEntry[],
+  rng: () => number = Math.random,
+): ColorUnoState {
+  const deck = createUnoDeck(rng);
+  const hands: Record<string, UnoCard[]> = {};
+  const lastCardCalled: Record<string, boolean> = {};
+
+  for (const p of players) {
+    hands[p.id] = [];
+    lastCardCalled[p.id] = false;
+    for (let i = 0; i < 7; i++) {
+      hands[p.id]!.push(deck.pop()!);
+    }
+  }
+
+  // Flip starting card: re-flip if wild_draw_four
+  let startCard = deck.pop()!;
+  while (startCard.kind === 'wild_draw_four') {
+    deck.unshift(startCard);
+    startCard = deck.pop()!;
+  }
+
+  const activeColor: UnoColor = startCard.color === 'wild' ? 'red' : startCard.color;
+  let direction: 1 | -1 = 1;
+  let turnIndex = 0;
+  let pendingDrawCount = 0;
+  const nextLog = [
+    ...actionLog,
+    {
+      id: `round-${roundNumber}-${Date.now()}`,
+      text: `Ván #${roundNumber} Bài Sắc Màu bắt đầu! Lá mở màn: ${formatUnoCardLabel(startCard)} (${UNO_COLOR_LABELS[activeColor]}).`,
+      timestamp: Date.now(),
+    },
+  ];
+
+  // Apply starting card effects
+  if (startCard.kind === 'skip') {
+    nextLog.push({
+      id: `start-skip-${Date.now()}`,
+      text: `${players[0]!.username} bị mất lượt mở màn!`,
+      timestamp: Date.now(),
+    });
+    turnIndex = advanceIndex(0, 1, direction, players.length);
+  } else if (startCard.kind === 'reverse') {
+    if (players.length === 2) {
+      turnIndex = advanceIndex(0, 1, direction, players.length);
+    } else {
+      direction = -1;
+      turnIndex = players.length - 1;
+    }
+    nextLog.push({
+      id: `start-rev-${Date.now()}`,
+      text: `Lá mở màn Đảo Chiều!`,
+      timestamp: Date.now(),
+    });
+  } else if (startCard.kind === 'draw_two') {
+    if (stackDrawCards) {
+      pendingDrawCount = 2;
+    } else {
+      const p0 = players[0]!;
+      hands[p0.id]!.push(deck.pop()!, deck.pop()!);
+      turnIndex = advanceIndex(0, 1, direction, players.length);
+      nextLog.push({
+        id: `start-d2-${Date.now()}`,
+        text: `${p0.username} rút 2 lá từ lá mở màn và mất lượt!`,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  return {
+    players: [...players],
+    deck,
+    discardPile: [startCard],
+    hands,
+    scores: { ...scores },
+    roundNumber,
+    roundsMode,
+    stackDrawCards,
+    forcedPlayAfterDraw,
+    pendingDrawCount,
+    activeColor,
+    direction,
+    turnIndex,
+    drawnCardId: null,
+    lastCardCalled,
+    wd4Challenge: null,
+    phase: 'playing',
+    winnerIds: [],
+    actionLog: nextLog,
+  };
+}
+
 export const ColorUnoGame: GameModule<
   ColorUnoState,
   ColorUnoAction,
@@ -203,59 +341,42 @@ export const ColorUnoGame: GameModule<
 
   setup(players, options) {
     if (players.length < 2 || players.length > 10) {
-      throw new Error('Sắc Màu Vui Nhộn cần từ 2 đến 10 người chơi');
+      throw new Error('Bài Sắc Màu cần từ 2 đến 10 người chơi');
     }
 
     const rng = options?.rng ?? Math.random;
-    const deck = createUnoDeck(rng);
-    const hands: Record<string, UnoCard[]> = {};
-    const lastCardCalled: Record<string, boolean> = {};
+    const roundsMode = options?.roundsMode ?? 'single';
+    const stackDrawCards = options?.stackDrawCards ?? false;
+    const forcedPlayAfterDraw = options?.forcedPlayAfterDraw ?? false;
 
+    const scores: Record<string, number> = {};
     for (const p of players) {
-      hands[p.id] = [];
-      lastCardCalled[p.id] = false;
-      for (let i = 0; i < 7; i++) {
-        hands[p.id]!.push(deck.pop()!);
-      }
+      scores[p.id] = 0;
     }
 
-    // Pick a clean non-wild starting card
-    let startIdx = deck.length - 1;
-    while (startIdx >= 0 && deck[startIdx]!.color === 'wild') {
-      startIdx--;
-    }
-    const startCard = startIdx >= 0 ? deck.splice(startIdx, 1)[0]! : deck.pop()!;
-    const activeColor: UnoColor = startCard.color === 'wild' ? 'red' : startCard.color;
-
-    return {
-      players: [...players],
-      deck,
-      discardPile: [startCard],
-      hands,
-      activeColor,
-      direction: 1,
-      turnIndex: 0,
-      drawnCardId: null,
-      lastCardCalled,
-      phase: 'playing',
-      winnerIds: [],
-      actionLog: [
-        {
-          id: 'start',
-          text: `Ván Sắc Màu Vui Nhộn bắt đầu! Lá mở màn: ${formatUnoCardLabel(startCard)} (${UNO_COLOR_LABELS[activeColor]}).`,
-          timestamp: Date.now(),
-        },
-      ],
-    };
+    return dealRound(
+      players,
+      scores,
+      1,
+      roundsMode,
+      stackDrawCards,
+      forcedPlayAfterDraw,
+      [],
+      rng,
+    );
   },
 
   getLegalActions(state, playerId) {
-    if (state.phase !== 'playing') return [];
+    if (state.phase === 'finished') return [];
+
+    if (state.phase === 'wd4_challenge' && state.wd4Challenge) {
+      if (state.wd4Challenge.victimId !== playerId) return [];
+      return [{ type: 'CHALLENGE_WD4' }, { type: 'DECLINE_WD4' }];
+    }
 
     const actions: ColorUnoAction[] = [];
     const myHand = state.hands[playerId] ?? [];
 
-    // Out-of-turn / anytime last-card call or catch
     if (myHand.length === 1 && !state.lastCardCalled[playerId]) {
       actions.push({ type: 'CALL_LAST_CARD' });
     }
@@ -272,7 +393,10 @@ export const ColorUnoGame: GameModule<
 
     if (state.drawnCardId) {
       const drawnCard = myHand.find((c) => c.id === state.drawnCardId);
-      if (drawnCard && isCardPlayable(drawnCard, topCard, state.activeColor)) {
+      if (
+        drawnCard &&
+        isCardPlayable(drawnCard, topCard, state.activeColor, 0, state.stackDrawCards)
+      ) {
         if (drawnCard.color === 'wild') {
           for (const c of UNO_COLORS) {
             actions.push({ type: 'PLAY_CARD', cardId: drawnCard.id, chosenColor: c });
@@ -280,13 +404,25 @@ export const ColorUnoGame: GameModule<
         } else {
           actions.push({ type: 'PLAY_CARD', cardId: drawnCard.id });
         }
+        if (!state.forcedPlayAfterDraw) {
+          actions.push({ type: 'PASS_TURN' });
+        }
+      } else {
+        actions.push({ type: 'PASS_TURN' });
       }
-      actions.push({ type: 'PASS_TURN' });
       return actions;
     }
 
     for (const card of myHand) {
-      if (isCardPlayable(card, topCard, state.activeColor)) {
+      if (
+        isCardPlayable(
+          card,
+          topCard,
+          state.activeColor,
+          state.pendingDrawCount,
+          state.stackDrawCards,
+        )
+      ) {
         if (card.color === 'wild') {
           for (const c of UNO_COLORS) {
             actions.push({ type: 'PLAY_CARD', cardId: card.id, chosenColor: c });
@@ -303,17 +439,7 @@ export const ColorUnoGame: GameModule<
 
   applyAction(state, playerId, action) {
     const legal = this.getLegalActions(state, playerId);
-    const isLegal = legal.some((a) => {
-      if (a.type !== action.type) return false;
-      if (a.type === 'PLAY_CARD' && action.type === 'PLAY_CARD') {
-        return a.cardId === action.cardId && a.chosenColor === action.chosenColor;
-      }
-      if (a.type === 'CATCH_LAST_CARD' && action.type === 'CATCH_LAST_CARD') {
-        return a.targetId === action.targetId;
-      }
-      return true;
-    });
-
+    const isLegal = legal.some((a) => JSON.stringify(a) === JSON.stringify(action));
     if (!isLegal) {
       throw new Error('Hành động không hợp lệ');
     }
@@ -333,11 +459,7 @@ export const ColorUnoGame: GameModule<
         text: `${actor.username} hô: "CÒN 1 LÁ!"`,
         timestamp: Date.now(),
       });
-      return {
-        ...state,
-        lastCardCalled: nextLastCardCalled,
-        actionLog: nextLog,
-      };
+      return { ...state, lastCardCalled: nextLastCardCalled, actionLog: nextLog };
     }
 
     if (action.type === 'CATCH_LAST_CARD') {
@@ -360,6 +482,85 @@ export const ColorUnoGame: GameModule<
       };
     }
 
+    if (action.type === 'DECLINE_WD4' && state.wd4Challenge) {
+      const { victimId } = state.wd4Challenge;
+      const victim = state.players.find((p) => p.id === victimId)!;
+      const drawAmt = state.pendingDrawCount > 0 ? state.pendingDrawCount : 4;
+      const res = drawFromDeck(state.deck, state.discardPile, drawAmt);
+      nextHands[victimId]!.push(...res.drawn);
+      nextLastCardCalled[victimId] = false;
+      const nextTurnIndex = advanceIndex(state.turnIndex, 1, state.direction, state.players.length);
+      nextLog.push({
+        id: `${Date.now()}-${nextLog.length}`,
+        text: `${victim.username} từ chối thách đấu và rút ${res.drawn.length} lá.`,
+        timestamp: Date.now(),
+      });
+      return {
+        ...state,
+        deck: res.deck,
+        discardPile: res.discardPile,
+        hands: nextHands,
+        lastCardCalled: nextLastCardCalled,
+        pendingDrawCount: 0,
+        wd4Challenge: null,
+        phase: 'playing',
+        turnIndex: nextTurnIndex,
+        actionLog: nextLog,
+      };
+    }
+
+    if (action.type === 'CHALLENGE_WD4' && state.wd4Challenge) {
+      const { offenderId, victimId, wasLegal } = state.wd4Challenge;
+      const offender = state.players.find((p) => p.id === offenderId)!;
+      const victim = state.players.find((p) => p.id === victimId)!;
+
+      if (!wasLegal) {
+        // Challenge succeeded! Offender held prevColor -> offender draws 4, victim keeps turn
+        const res = drawFromDeck(state.deck, state.discardPile, 4);
+        nextHands[offenderId]!.push(...res.drawn);
+        nextLastCardCalled[offenderId] = false;
+        nextLog.push({
+          id: `${Date.now()}-${nextLog.length}`,
+          text: `${victim.username} thách đấu THÀNH CÔNG! ${offender.username} phải rút 4 lá.`,
+          timestamp: Date.now(),
+        });
+        return {
+          ...state,
+          deck: res.deck,
+          discardPile: res.discardPile,
+          hands: nextHands,
+          lastCardCalled: nextLastCardCalled,
+          pendingDrawCount: 0,
+          wd4Challenge: null,
+          phase: 'playing',
+          actionLog: nextLog,
+        };
+      } else {
+        // Challenge failed! Victim draws 6 and loses turn
+        const res = drawFromDeck(state.deck, state.discardPile, 6);
+        nextHands[victimId]!.push(...res.drawn);
+        nextLastCardCalled[victimId] = false;
+        const nextTurnIndex = advanceIndex(state.turnIndex, 1, state.direction, state.players.length);
+        nextLog.push({
+          id: `${Date.now()}-${nextLog.length}`,
+          text: `${victim.username} thách đấu THẤT BẠI! Phải rút 6 lá và mất lượt.`,
+          timestamp: Date.now(),
+        });
+        return {
+          ...state,
+          deck: res.deck,
+          discardPile: res.discardPile,
+          hands: nextHands,
+          lastCardCalled: nextLastCardCalled,
+          pendingDrawCount: 0,
+          wd4Challenge: null,
+          phase: 'playing',
+          turnIndex: nextTurnIndex,
+          actionLog: nextLog,
+        };
+      }
+    }
+
     if (action.type === 'PASS_TURN') {
       const nextTurnIndex = advanceIndex(state.turnIndex, 1, state.direction, state.players.length);
       nextLog.push({
@@ -376,6 +577,30 @@ export const ColorUnoGame: GameModule<
     }
 
     if (action.type === 'DRAW_CARD') {
+      // If pending stacked draw count > 0, player draws all stacked cards and loses turn
+      if (state.pendingDrawCount > 0) {
+        const res = drawFromDeck(state.deck, state.discardPile, state.pendingDrawCount);
+        nextHands[playerId]!.push(...res.drawn);
+        nextLastCardCalled[playerId] = false;
+        const nextTurnIndex = advanceIndex(state.turnIndex, 1, state.direction, state.players.length);
+        nextLog.push({
+          id: `${Date.now()}-${nextLog.length}`,
+          text: `${actor.username} rút ${res.drawn.length} lá cộng dồn và mất lượt.`,
+          timestamp: Date.now(),
+        });
+        return {
+          ...state,
+          deck: res.deck,
+          discardPile: res.discardPile,
+          hands: nextHands,
+          lastCardCalled: nextLastCardCalled,
+          pendingDrawCount: 0,
+          turnIndex: nextTurnIndex,
+          drawnCardId: null,
+          actionLog: nextLog,
+        };
+      }
+
       const res = drawFromDeck(state.deck, state.discardPile, 1);
       if (res.reshuffled) {
         nextLog.push({
@@ -387,11 +612,6 @@ export const ColorUnoGame: GameModule<
 
       if (res.drawn.length === 0) {
         const nextTurnIndex = advanceIndex(state.turnIndex, 1, state.direction, state.players.length);
-        nextLog.push({
-          id: `${Date.now()}-${nextLog.length}`,
-          text: `${actor.username} không còn bài để rút, chuyển lượt.`,
-          timestamp: Date.now(),
-        });
         return {
           ...state,
           deck: res.deck,
@@ -407,10 +627,10 @@ export const ColorUnoGame: GameModule<
       nextLastCardCalled[playerId] = false;
 
       const topCard = res.discardPile[res.discardPile.length - 1]!;
-      if (isCardPlayable(drawnCard, topCard, state.activeColor)) {
+      if (isCardPlayable(drawnCard, topCard, state.activeColor, 0, state.stackDrawCards)) {
         nextLog.push({
           id: `${Date.now()}-${nextLog.length}`,
-          text: `${actor.username} rút 1 lá (có thể đánh ngay hoặc bỏ qua).`,
+          text: `${actor.username} rút 1 lá.`,
           timestamp: Date.now(),
         });
         return {
@@ -442,7 +662,13 @@ export const ColorUnoGame: GameModule<
       };
     }
 
+    if (action.type !== 'PLAY_CARD') {
+      return state;
+    }
+
     // PLAY_CARD
+    const prevColor = state.activeColor;
+    const handBeforePlay = [...nextHands[playerId]!];
     const hand = nextHands[playerId]!;
     const cardIdx = hand.findIndex((c) => c.id === action.cardId);
     const [played] = hand.splice(cardIdx, 1);
@@ -461,53 +687,102 @@ export const ColorUnoGame: GameModule<
     });
 
     if (hand.length === 0) {
+      let roundPoints = 0;
+      for (const p of state.players) {
+        if (p.id !== playerId) {
+          roundPoints += (nextHands[p.id] ?? []).reduce((s, c) => s + getCardPoints(c), 0);
+        }
+      }
+      const nextScores = { ...state.scores, [playerId]: (state.scores[playerId] ?? 0) + roundPoints };
       nextLog.push({
         id: `${Date.now()}-${nextLog.length}`,
-        text: `${actor.username} đã hết bài và giành chiến thắng!`,
+        text: `🏆 ${actor.username} hết bài và ghi ${roundPoints} điểm! (Tổng: ${nextScores[playerId]})`,
         timestamp: Date.now(),
       });
-      return {
-        ...state,
-        discardPile: nextDiscard,
-        hands: nextHands,
-        activeColor: nextColor,
-        drawnCardId: null,
-        lastCardCalled: nextLastCardCalled,
-        phase: 'finished',
-        winnerIds: [playerId],
-        actionLog: nextLog,
-      };
+
+      if (state.roundsMode === 'single' || nextScores[playerId]! >= 500) {
+        return {
+          ...state,
+          discardPile: nextDiscard,
+          hands: nextHands,
+          scores: nextScores,
+          activeColor: nextColor,
+          drawnCardId: null,
+          lastCardCalled: nextLastCardCalled,
+          phase: 'finished',
+          winnerIds: [playerId],
+          actionLog: nextLog,
+        };
+      }
+
+      // Deal next round for 500-point race
+      return dealRound(
+        state.players,
+        nextScores,
+        state.roundNumber + 1,
+        state.roundsMode,
+        state.stackDrawCards,
+        state.forcedPlayAfterDraw,
+        nextLog,
+      );
     }
 
     let nextDeck = [...state.deck];
     let finalDiscard = nextDiscard;
     let nextDirection = state.direction;
+    let nextPendingDraw = state.pendingDrawCount;
     let step = 1;
 
     if (played!.kind === 'skip') {
       step = 2;
     } else if (played!.kind === 'reverse') {
       if (state.players.length === 2) {
-        // 2-player rule: reverse acts as skip
         step = 2;
       } else {
         nextDirection = (state.direction * -1) as 1 | -1;
       }
-    } else if (played!.kind === 'draw_two' || played!.kind === 'wild_draw_four') {
-      const drawCount = played!.kind === 'draw_two' ? 2 : 4;
+    } else if (played!.kind === 'draw_two') {
+      if (state.stackDrawCards) {
+        nextPendingDraw += 2;
+      } else {
+        const victimIdx = advanceIndex(state.turnIndex, 1, nextDirection, state.players.length);
+        const victim = state.players[victimIdx]!;
+        const drawRes = drawFromDeck(nextDeck, finalDiscard, 2);
+        nextDeck = drawRes.deck;
+        finalDiscard = drawRes.discardPile;
+        nextHands[victim.id]!.push(...drawRes.drawn);
+        nextLastCardCalled[victim.id] = false;
+        nextLog.push({
+          id: `${Date.now()}-${nextLog.length}`,
+          text: `${victim.username} phải rút ${drawRes.drawn.length} lá và mất lượt!`,
+          timestamp: Date.now(),
+        });
+        step = 2;
+      }
+    } else if (played!.kind === 'wild_draw_four') {
       const victimIdx = advanceIndex(state.turnIndex, 1, nextDirection, state.players.length);
       const victim = state.players[victimIdx]!;
-      const drawRes = drawFromDeck(nextDeck, finalDiscard, drawCount);
-      nextDeck = drawRes.deck;
-      finalDiscard = drawRes.discardPile;
-      nextHands[victim.id]!.push(...drawRes.drawn);
-      nextLastCardCalled[victim.id] = false;
-      nextLog.push({
-        id: `${Date.now()}-${nextLog.length}`,
-        text: `${victim.username} phải rút ${drawRes.drawn.length} lá và mất lượt!`,
-        timestamp: Date.now(),
-      });
-      step = 2;
+      const wasLegal = !handBeforePlay.some((c) => c.id !== played!.id && c.color === prevColor);
+      return {
+        ...state,
+        deck: nextDeck,
+        discardPile: finalDiscard,
+        hands: nextHands,
+        activeColor: nextColor,
+        direction: nextDirection,
+        turnIndex: victimIdx,
+        drawnCardId: null,
+        pendingDrawCount: state.stackDrawCards ? nextPendingDraw + 4 : 4,
+        lastCardCalled: nextLastCardCalled,
+        phase: 'wd4_challenge',
+        wd4Challenge: {
+          offenderId: playerId,
+          victimId: victim.id,
+          prevColor,
+          wasLegal,
+        },
+        actionLog: nextLog,
+      };
     }
 
     const nextTurnIndex = advanceIndex(state.turnIndex, step, nextDirection, state.players.length);
@@ -519,6 +794,7 @@ export const ColorUnoGame: GameModule<
       hands: nextHands,
       activeColor: nextColor,
       direction: nextDirection,
+      pendingDrawCount: nextPendingDraw,
       turnIndex: nextTurnIndex,
       drawnCardId: null,
       lastCardCalled: nextLastCardCalled,
@@ -527,26 +803,47 @@ export const ColorUnoGame: GameModule<
   },
 
   getPlayerView(state, playerId) {
-    const currentTurnPlayerId =
-      state.phase === 'playing' ? (state.players[state.turnIndex]?.id ?? null) : null;
+    let currentTurnPlayerId: string | null = null;
+    if (state.phase === 'wd4_challenge' && state.wd4Challenge) {
+      currentTurnPlayerId = state.wd4Challenge.victimId;
+    } else if (state.phase === 'playing') {
+      currentTurnPlayerId = state.players[state.turnIndex]?.id ?? null;
+    }
+
+    const offender = state.wd4Challenge
+      ? state.players.find((p) => p.id === state.wd4Challenge!.offenderId)
+      : undefined;
 
     return {
       gameId: 'color-uno',
       phase: state.phase,
+      roundNumber: state.roundNumber,
+      roundsMode: state.roundsMode,
+      pendingDrawCount: state.pendingDrawCount,
       currentTurnPlayerId,
       myPlayerId: playerId,
       myHand: [...(state.hands[playerId] ?? [])],
       topCard: state.discardPile[state.discardPile.length - 1]!,
+      recentDiscard: state.discardPile.slice(-3),
       activeColor: state.activeColor,
       direction: state.direction,
       deckCount: state.deck.length,
       drawnCardId: currentTurnPlayerId === playerId ? state.drawnCardId : null,
+      wd4Prompt:
+        state.phase === 'wd4_challenge' && state.wd4Challenge
+          ? {
+              offenderUsername: offender?.username ?? '',
+              victimId: state.wd4Challenge.victimId,
+            }
+          : null,
       legalActions: this.getLegalActions(state, playerId),
       players: state.players.map((p) => ({
         id: p.id,
         username: p.username,
         avatarId: p.avatarId,
+        level: p.level ?? 1,
         cardCount: state.hands[p.id]?.length ?? 0,
+        score: state.scores[p.id] ?? 0,
         calledLastCard: Boolean(state.lastCardCalled[p.id]),
       })),
       actionLog: state.actionLog,
@@ -560,31 +857,17 @@ export const ColorUnoGame: GameModule<
   },
 
   getResult(state) {
-    const handPoints: Record<string, number> = {};
-    let totalOpponentPoints = 0;
-
-    for (const p of state.players) {
-      const pts = (state.hands[p.id] ?? []).reduce((sum, c) => sum + getCardPoints(c), 0);
-      handPoints[p.id] = pts;
-      if (!state.winnerIds.includes(p.id)) {
-        totalOpponentPoints += pts;
-      }
-    }
-
-    const sorted = [...state.players].sort((a, b) => {
-      if (state.winnerIds.includes(a.id)) return -1;
-      if (state.winnerIds.includes(b.id)) return 1;
-      return (handPoints[a.id] ?? 0) - (handPoints[b.id] ?? 0);
-    });
-
+    const sorted = [...state.players].sort(
+      (a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0),
+    );
     return {
       winnerIds: [...state.winnerIds],
       rankings: sorted.map((p, idx) => ({
         playerId: p.id,
         rank: idx + 1,
-        score: state.winnerIds.includes(p.id) ? totalOpponentPoints : handPoints[p.id] ?? 0,
+        score: state.scores[p.id] ?? 0,
       })),
-      summary: 'Kết thúc ván Sắc Màu Vui Nhộn',
+      summary: 'Kết thúc trận Bài Sắc Màu',
     };
   },
 };

@@ -22,4 +22,5 @@ export interface PublicRoomSummary {
   memberCount: number;
   maxPlayers: number;
   hostUsername: string;
+  options?: Record<string, unknown>;
 }

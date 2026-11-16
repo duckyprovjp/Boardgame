@@ -123,7 +123,16 @@ io.use(async (socket, next) => {
       if (userId) {
         const dbUser = await prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true, username: true, avatarId: true, isGuest: true, email: true, isBanned: true },
+          select: {
+            id: true,
+            username: true,
+            avatarId: true,
+            isGuest: true,
+            xp: true,
+            level: true,
+            email: true,
+            isBanned: true,
+          },
         });
         if (dbUser && !dbUser.isBanned) {
           socket.data.user = {
@@ -131,6 +140,8 @@ io.use(async (socket, next) => {
             username: dbUser.username,
             avatarId: dbUser.avatarId,
             isGuest: dbUser.isGuest,
+            xp: dbUser.xp,
+            level: dbUser.level,
             email: dbUser.email,
           };
           next();
@@ -168,6 +179,8 @@ io.on('connection', (socket) => {
     username: user.username,
     avatarId: user.avatarId,
     isGuest: user.isGuest,
+    xp: user.xp,
+    level: user.level,
   });
 
   registerRoomHandlers(io, socket, roomManager, gameManager, matchmakingService);

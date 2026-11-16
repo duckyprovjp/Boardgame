@@ -542,11 +542,7 @@ export function LobbyPanel({ socket, currentUserId }: LobbyPanelProps) {
                 avatarId: p.avatarId,
                 isCurrentTurn: gameView.currentTurnPlayerId === p.id,
                 sublabel:
-                  'chips' in p
-                    ? `🪙 ${p.chips} chip · Cược: ${p.bet}${p.folded ? ' (Úp)' : ''}`
-                    : 'lives' in p
-                      ? `❤️ ${p.lives} · 🛡️ ${p.shields} · ${p.cardCount} lá`
-                      : `${p.cardCount} lá trên tay`,
+                  'cardCount' in p ? `${p.cardCount} lá trên tay` : '',
                 badge:
                   'calledLastCard' in p && p.calledLastCard && p.cardCount === 1
                     ? 'CÒN 1 LÁ!'

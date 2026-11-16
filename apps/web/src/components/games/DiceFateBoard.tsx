@@ -1,11 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type {
-  DiceFateAction,
-  DiceFateCardInstance,
-  DiceFatePlayerView,
-} from '@boardgame/shared';
+import type { DiceFateAction, DiceFatePlayerView } from '@boardgame/shared';
 
 interface DiceFateBoardProps {
   view: DiceFatePlayerView;
@@ -14,266 +10,218 @@ interface DiceFateBoardProps {
 
 export function DiceFateBoard({ view, onAction }: DiceFateBoardProps) {
   const [shaking, setShaking] = useState(false);
-  const [pendingTargetCard, setPendingTargetCard] = useState<DiceFateCardInstance | null>(null);
+  const [pickingTarget, setPickingTarget] = useState(false);
 
-  const canShake = view.legalActions.some((a) => a.type === 'SHAKE_DIE');
-  const canEndTurn = view.legalActions.some((a) => a.type === 'END_TURN');
-  const canPassCancel = view.legalActions.some((a) => a.type === 'PASS_CANCEL');
-  const cancelAction = view.legalActions.find(
-    (a): a is Extract<DiceFateAction, { type: 'PLAY_CANCEL' }> => a.type === 'PLAY_CANCEL',
+  const canRoll = view.legalActions.some((a) => a.type === 'ROLL_DIE');
+  const canPassWindow = view.legalActions.some((a) => a.type === 'PASS_WINDOW');
+  const dirActions = view.legalActions.filter(
+    (a): a is Extract<DiceFateAction, { type: 'CHOOSE_DIRECTION' }> =>
+      a.type === 'CHOOSE_DIRECTION',
   );
-  const dieTargetActions = view.legalActions.filter(
-    (a): a is Extract<DiceFateAction, { type: 'CHOOSE_DIE_TARGET' }> =>
-      a.type === 'CHOOSE_DIE_TARGET',
+  const nextHolderActions = view.legalActions.filter(
+    (a): a is Extract<DiceFateAction, { type: 'CHOOSE_NEXT_HOLDER' }> =>
+      a.type === 'CHOOSE_NEXT_HOLDER',
+  );
+  const playCardActions = view.legalActions.filter(
+    (a): a is Extract<DiceFateAction, { type: 'PLAY_CARD' }> => a.type === 'PLAY_CARD',
   );
 
-  const cardDefMap = new Map(view.rules.cards.map((c) => [c.id, c]));
-  const otherAlive = view.players.filter((p) => p.id !== view.myPlayerId && p.alive);
+  const cardDef = view.myCard
+    ? view.rules.cards.find((c) => c.id === view.myCard!.defId)
+    : undefined;
 
-  const triggerShake = useCallback(() => {
-    if (!canShake || shaking) return;
+  const triggerRoll = useCallback(() => {
+    if (!canRoll || shaking) return;
     setShaking(true);
     setTimeout(() => {
       setShaking(false);
-      onAction({ type: 'SHAKE_DIE' });
+      onAction({ type: 'ROLL_DIE' });
     }, 450);
-  }, [canShake, shaking, onAction]);
+  }, [canRoll, shaking, onAction]);
 
-  // Mobile devicemotion visual shake trigger (server still decides outcome)
+  // Mobile devicemotion visual shake trigger (server decides outcome)
   useEffect(() => {
-    if (!canShake || typeof window === 'undefined') return;
+    if (!canRoll || typeof window === 'undefined') return;
     let lastTrigger = 0;
     const onMotion = (e: DeviceMotionEvent) => {
       const acc = e.accelerationIncludingGravity;
       if (!acc) return;
-      const magnitude = Math.abs(acc.x ?? 0) + Math.abs(acc.y ?? 0) + Math.abs(acc.z ?? 0);
-      if (magnitude > 28 && Date.now() - lastTrigger > 1200) {
+      const mag = Math.abs(acc.x ?? 0) + Math.abs(acc.y ?? 0) + Math.abs(acc.z ?? 0);
+      if (mag > 28 && Date.now() - lastTrigger > 1200) {
         lastTrigger = Date.now();
-        triggerShake();
+        triggerRoll();
       }
     };
     window.addEventListener('devicemotion', onMotion);
     return () => window.removeEventListener('devicemotion', onMotion);
-  }, [canShake, triggerShake]);
+  }, [canRoll, triggerRoll]);
 
-  const handleCardClick = (card: DiceFateCardInstance) => {
-    if (view.phase === 'cancel_window' && cancelAction && card.instanceId === cancelAction.instanceId) {
-      onAction(cancelAction);
-      return;
+  const isReactionWindow =
+    view.phase === 'START_OF_TURN_WINDOW' ||
+    view.phase === 'BEFORE_ROLL_WINDOW' ||
+    view.phase === 'AFTER_ROLL_WINDOW' ||
+    view.phase === 'ON_ELIMINATED_WINDOW' ||
+    view.phase === 'ON_RECEIVE_DIE_WINDOW';
+
+  const handlePlayMyCard = () => {
+    if (playCardActions.length === 0) return;
+    if (playCardActions.length === 1 && !playCardActions[0]!.targetId) {
+      onAction(playCardActions[0]!);
+    } else {
+      setPickingTarget(true);
     }
-
-    const def = cardDefMap.get(card.defId);
-    if (!def) return;
-
-    if (def.requiresTarget) {
-      const legalForCard = view.legalActions.filter(
-        (a): a is Extract<DiceFateAction, { type: 'PLAY_CARD' }> =>
-          a.type === 'PLAY_CARD' && a.instanceId === card.instanceId,
-      );
-      if (legalForCard.length === 1) {
-        onAction(legalForCard[0]!);
-      } else if (legalForCard.length > 1) {
-        setPendingTargetCard(card);
-      }
-      return;
-    }
-
-    const direct = view.legalActions.find(
-      (a) => a.type === 'PLAY_CARD' && a.instanceId === card.instanceId,
-    );
-    if (direct) onAction(direct);
   };
 
   return (
-    <div className="space-y-4">
-      {/* Die & Status */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950 text-3xl transition-transform ${
-              shaking ? 'animate-bounce' : ''
-            }`}
+    <div className="flex h-full w-full flex-col items-center justify-between py-14 sm:py-16">
+      {/* Center 3D-looking Die & Lethal Faces */}
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div
+          className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-amber-400/70 bg-gradient-to-br from-stone-800 to-stone-950 text-3xl font-black text-white shadow-[0_10px_25px_rgba(0,0,0,0.6)] transition-transform ${
+            shaking ? 'animate-bounce' : ''
+          }`}
+        >
+          {view.lastDieValue ?? '?'}
+        </div>
+
+        <p className="text-[11px] text-amber-200">
+          Mặt nổ hiện tại: [{view.effectiveLethalFaces.join(', ')}]
+        </p>
+
+        {view.phase === 'ON_ELIMINATED_WINDOW' && (
+          <div className="animate-pulse rounded-xl bg-rose-600/90 px-4 py-1.5 text-sm font-black text-white shadow-lg">
+            BÙM! Đang xét thẻ cứu mạng...
+          </div>
+        )}
+
+        {canRoll && (
+          <button
+            type="button"
+            onClick={triggerRoll}
+            disabled={shaking}
+            className="cursor-pointer rounded-xl bg-amber-400 px-5 py-2 text-xs font-black text-slate-950 shadow-lg hover:bg-amber-300"
           >
-            {view.lastDieFace ? view.lastDieFace.emoji : '🎲'}
-          </div>
-          <div className="text-xs">
-            <p className="text-sm font-bold text-white">
-              {view.lastDieFace ? view.lastDieFace.label : 'Chưa lắc xúc xắc'}
-            </p>
-            <p className="text-slate-400">
-              {view.lastDieFace
-                ? view.lastDieFace.description
-                : 'Nhấn nút Lắc Xúc Xắc (hoặc lắc điện thoại)'}
-            </p>
-            {view.bannedDeck && (
-              <p className="mt-1 font-semibold text-rose-300">
-                🚫 Đang cấm thẻ {view.bannedDeck === 'red' ? 'Đỏ' : 'Xanh'} vòng này
-              </p>
-            )}
-          </div>
-        </div>
+            {shaking ? 'Đang lắc...' : 'Tung Xúc Xắc'}
+          </button>
+        )}
 
-        <div className="flex flex-wrap gap-2">
-          {canShake && (
+        {/* Direction chooser */}
+        {dirActions.length > 0 && (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-400/40 bg-slate-950/90 px-4 py-2">
+            <span className="text-xs font-semibold text-emerald-300">Chọn hướng chuyền:</span>
             <button
               type="button"
-              onClick={triggerShake}
-              disabled={shaking}
-              className="rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-300"
+              onClick={() => onAction({ type: 'CHOOSE_DIRECTION', direction: 'left' })}
+              className="cursor-pointer rounded-lg bg-emerald-500 px-3 py-1 text-xs font-bold text-slate-950"
             >
-              {shaking ? 'Đang lắc...' : '🎲 Lắc Xúc Xắc'}
+              ← Trái
             </button>
-          )}
-          {canEndTurn && (
             <button
               type="button"
-              onClick={() => onAction({ type: 'END_TURN' })}
-              className="rounded-xl border border-slate-600 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+              onClick={() => onAction({ type: 'CHOOSE_DIRECTION', direction: 'right' })}
+              className="cursor-pointer rounded-lg bg-emerald-500 px-3 py-1 text-xs font-bold text-slate-950"
             >
-              Kết thúc lượt
+              Phải →
             </button>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
 
-      {/* Die target picker */}
-      {dieTargetActions.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3">
-          <span className="text-xs font-semibold text-rose-200">
-            🎯 Chọn 1 người chơi chịu phạt từ xúc xắc:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {dieTargetActions.map((act) => {
-              const target = view.players.find((p) => p.id === act.targetId);
+        {/* Eliminated player chooses next holder */}
+        {nextHolderActions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-rose-400/40 bg-slate-950/90 px-4 py-2">
+            <span className="text-xs font-semibold text-rose-300">
+              Trao xúc xắc cho người kế bên:
+            </span>
+            {nextHolderActions.map((act) => {
+              const t = view.players.find((p) => p.id === act.targetId);
               return (
                 <button
                   key={act.targetId}
                   type="button"
                   onClick={() => onAction(act)}
-                  className="rounded-lg bg-rose-500 px-3 py-1 text-xs font-semibold text-white"
+                  className="cursor-pointer rounded-lg bg-amber-400 px-3 py-1 text-xs font-bold text-slate-950"
                 >
-                  {target?.username ?? act.targetId}
+                  {t?.username}
                 </button>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Cancel Red Card window */}
-      {view.phase === 'cancel_window' && view.pendingRedCard && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-          <p className="text-xs text-emerald-200">
-            Thẻ Đỏ vừa được đánh! Bạn có muốn dùng thẻ Xanh &quot;Hoá Giải&quot; không?
-          </p>
-          <div className="flex gap-2">
-            {cancelAction && (
-              <button
-                type="button"
-                onClick={() => onAction(cancelAction)}
-                className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950"
-              >
-                ✨ Dùng Hoá Giải
-              </button>
-            )}
-            {canPassCancel && (
-              <button
-                type="button"
-                onClick={() => onAction({ type: 'PASS_CANCEL' })}
-                className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-200"
-              >
-                Không huỷ
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Dare banner */}
-      {view.activeDare && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-          🎭 <strong>{view.activeDare.targetUsername}</strong>: {view.activeDare.prompt}
-        </div>
-      )}
-
-      {/* Private Peek */}
-      {view.peekedHand && (
-        <div className="rounded-xl border border-purple-500/40 bg-purple-500/10 p-3 text-xs text-purple-200">
-          👁️ Bài của <strong>{view.peekedHand.targetUsername}</strong>:{' '}
-          {view.peekedHand.cards.map((c) => cardDefMap.get(c.defId)?.name ?? c.defId).join(', ')}
-        </div>
-      )}
-
-      {/* Card target picker */}
-      {pendingTargetCard && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-400/40 bg-slate-900 p-3">
-          <span className="text-xs text-amber-200">
-            Chọn mục tiêu cho {cardDefMap.get(pendingTargetCard.defId)?.name}:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {otherAlive.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => {
-                  onAction({
-                    type: 'PLAY_CARD',
-                    instanceId: pendingTargetCard.instanceId,
-                    targetId: p.id,
-                  });
-                  setPendingTargetCard(null);
-                }}
-                className="rounded-lg bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950"
-              >
-                {p.username} (❤️{p.lives})
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setPendingTargetCard(null)}
-              className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300"
-            >
-              Huỷ
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Hand */}
-      <div>
-        <p className="mb-2 text-xs text-slate-400">
-          Bài định mệnh của bạn ({view.myHand.length} lá)
-        </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {view.myHand.map((card) => {
-            const def = cardDefMap.get(card.defId);
-            if (!def) return null;
-            const playable = view.legalActions.some(
-              (a) =>
-                (a.type === 'PLAY_CARD' || a.type === 'PLAY_CANCEL') &&
-                a.instanceId === card.instanceId,
-            );
+      {/* Target selector when playing targeted card */}
+      {pickingTarget && (
+        <div className="z-30 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400 bg-slate-950/95 px-4 py-2.5 shadow-xl">
+          <span className="text-xs font-semibold text-amber-300">Chọn mục tiêu:</span>
+          {playCardActions.map((act) => {
+            const t = view.players.find((p) => p.id === act.targetId);
             return (
               <button
-                key={card.instanceId}
+                key={act.targetId}
                 type="button"
-                disabled={!playable}
-                onClick={() => handleCardClick(card)}
-                className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition ${
-                  def.deck === 'green'
-                    ? 'border-emerald-500/40 bg-emerald-950/40'
-                    : 'border-rose-500/40 bg-rose-950/40'
-                } ${playable ? 'hover:border-white' : 'cursor-not-allowed opacity-55'}`}
+                onClick={() => {
+                  onAction(act);
+                  setPickingTarget(false);
+                }}
+                className="cursor-pointer rounded-lg bg-emerald-500 px-3 py-1 text-xs font-bold text-slate-950"
               >
-                <span className="text-xl">{def.emoji}</span>
-                <span className="mt-1 text-xs font-bold text-white">{def.name}</span>
-                <span className="mt-0.5 text-[10px] leading-tight text-slate-300">
-                  {def.description}
-                </span>
+                {t?.username}
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setPickingTarget(false)}
+            className="cursor-pointer rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300"
+          >
+            Huỷ
+          </button>
         </div>
+      )}
+
+      {/* Reaction window (indistinguishable for all alive players) + Hero single card */}
+      <div className="flex w-full flex-col items-center gap-2 px-4 pb-8">
+        {isReactionWindow && canPassWindow && (
+          <div className="flex items-center gap-3 rounded-xl border border-white/20 bg-slate-950/90 px-4 py-2 text-xs">
+            <span className="text-slate-200">Cửa sổ thẻ ({view.phase})</span>
+            <button
+              type="button"
+              onClick={() => onAction({ type: 'PASS_WINDOW' })}
+              className="cursor-pointer rounded-lg bg-slate-700 px-3 py-1 font-bold text-white hover:bg-slate-600"
+            >
+              Bỏ qua
+            </button>
+          </div>
+        )}
+
+        {cardDef ? (
+          <button
+            type="button"
+            disabled={playCardActions.length === 0}
+            onClick={handlePlayMyCard}
+            className={`max-w-xs rounded-xl border-2 px-4 py-2.5 text-left transition ${
+              cardDef.color === 'green'
+                ? 'border-emerald-400 bg-emerald-950/80'
+                : 'border-rose-400 bg-rose-950/80'
+            } ${
+              playCardActions.length > 0
+                ? 'cursor-pointer ring-2 ring-amber-400 hover:-translate-y-1'
+                : 'opacity-75'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-white">{cardDef.name}</span>
+              <span className="rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-amber-300">
+                {cardDef.timing}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-200">{cardDef.description}</p>
+          </button>
+        ) : (
+          <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-xs text-slate-400">
+            Bạn đã sử dụng thẻ bài của mình
+          </div>
+        )}
       </div>
     </div>
   );

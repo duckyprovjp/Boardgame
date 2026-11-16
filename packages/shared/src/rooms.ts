@@ -1,15 +1,27 @@
 import { z } from 'zod';
 import type { PublicUser } from './auth';
 
-export const GameIdSchema = z.enum([
-  'high-card',
-  'color-uno',
-  'meo-no',
-  'dice-fate',
-  'poker',
-  'blackjack',
-]);
+export const GameIdSchema = z.enum(['high-card', 'color-uno', 'dice-fate']);
 export type GameId = z.infer<typeof GameIdSchema>;
+
+export const ColorUnoRoomOptionsSchema = z.object({
+  roundsMode: z.enum(['single', '500']).default('single'),
+  turnTimerSec: z.coerce.number().int().min(10).max(60).default(20),
+  stackDrawCards: z.boolean().default(false),
+  forcedPlayAfterDraw: z.boolean().default(false),
+});
+
+export const DiceFateRoomOptionsSchema = z.object({
+  turnTimerSec: z.coerce.number().int().min(10).max(60).default(20),
+  reactionWindowMs: z.coerce.number().int().min(3000).max(15000).default(5000),
+});
+
+export const HighCardRoomOptionsSchema = z.object({
+  turnTimerSec: z.coerce.number().int().min(10).max(60).default(20),
+});
+
+export type ColorUnoRoomOptions = z.infer<typeof ColorUnoRoomOptionsSchema>;
+export type DiceFateRoomOptions = z.infer<typeof DiceFateRoomOptionsSchema>;
 
 export interface GameCatalogItem {
   id: GameId;
@@ -17,55 +29,44 @@ export interface GameCatalogItem {
   description: string;
   minPlayers: number;
   maxPlayers: number;
+  featured: boolean;
 }
 
 export const GAME_CATALOG: readonly GameCatalogItem[] = [
+  {
+    id: 'color-uno',
+    name: 'Bài Sắc Màu',
+    description: 'Đánh bài theo màu sắc và ký hiệu, thách đấu lá +4 và hết bài trước để thắng',
+    minPlayers: 2,
+    maxPlayers: 10,
+    featured: true,
+  },
+  {
+    id: 'dice-fate',
+    name: 'Xúc Xắc Định Mệnh',
+    description: 'Lắc xí ngầu sinh tử kết hợp 50 thẻ bài chức năng Xanh & Đỏ đầy kịch tính',
+    minPlayers: 3,
+    maxPlayers: 8,
+    featured: true,
+  },
   {
     id: 'high-card',
     name: 'Bài Cao (Thử Nghiệm)',
     description: 'Trò chơi rút bài đơn giản để kiểm tra bàn chơi',
     minPlayers: 2,
     maxPlayers: 4,
-  },
-  {
-    id: 'color-uno',
-    name: 'Sắc Màu Vui Nhộn',
-    description: 'Đánh bài theo màu sắc và ký hiệu, hết bài trước để thắng',
-    minPlayers: 2,
-    maxPlayers: 10,
-  },
-  {
-    id: 'meo-no',
-    name: 'Mèo Nổ',
-    description: 'Rút bài né bom nổ, dùng thẻ gỡ bom và chiến thuật',
-    minPlayers: 2,
-    maxPlayers: 5,
-  },
-  {
-    id: 'dice-fate',
-    name: 'Xúc Xắc Định Mệnh',
-    description: 'Lắc xí ngầu kết hợp thẻ bài xanh đỏ đầy bất ngờ',
-    minPlayers: 3,
-    maxPlayers: 8,
-  },
-  {
-    id: 'poker',
-    name: 'Poker (Xì Tố)',
-    description: 'Texas Hold\'em 2 lá tẩy + 5 lá chung, tố/theo/úp bài',
-    minPlayers: 2,
-    maxPlayers: 8,
-  },
-  {
-    id: 'blackjack',
-    name: 'Blackjack (Xì Dách)',
-    description: 'Rút bài đạt gần 21 điểm nhất mà không bị Quắc (>21)',
-    minPlayers: 2,
-    maxPlayers: 7,
+    featured: false,
   },
 ] as const;
 
 export function getGameCatalogItem(gameId: GameId): GameCatalogItem {
   return GAME_CATALOG.find((g) => g.id === gameId) ?? GAME_CATALOG[0]!;
+}
+
+export function parseRoomOptions(gameId: GameId, raw?: Record<string, unknown>): Record<string, unknown> {
+  if (gameId === 'color-uno') return ColorUnoRoomOptionsSchema.parse(raw ?? {});
+  if (gameId === 'dice-fate') return DiceFateRoomOptionsSchema.parse(raw ?? {});
+  return HighCardRoomOptionsSchema.parse(raw ?? {});
 }
 
 export const RoomVisibilitySchema = z.enum(['public', 'private']);
@@ -75,6 +76,7 @@ export const CreateRoomSchema = z.object({
   gameId: GameIdSchema,
   maxPlayers: z.number().int().min(2).max(10),
   visibility: RoomVisibilitySchema.default('private'),
+  options: z.record(z.unknown()).optional(),
 });
 
 export type CreateRoomInput = z.infer<typeof CreateRoomSchema>;
@@ -130,6 +132,7 @@ export interface RoomState {
   gameId: GameId;
   maxPlayers: number;
   visibility: RoomVisibility;
+  options: Record<string, unknown>;
   status: RoomStatus;
   hostId: string;
   members: RoomMember[];

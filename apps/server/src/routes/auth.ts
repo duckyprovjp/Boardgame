@@ -35,6 +35,8 @@ function toAuthUser(user: {
   username: string;
   avatarId: string;
   isGuest: boolean;
+  xp: number;
+  level: number;
   email: string | null;
 }): AuthUser {
   return {
@@ -42,6 +44,8 @@ function toAuthUser(user: {
     username: user.username,
     avatarId: user.avatarId,
     isGuest: user.isGuest,
+    xp: user.xp,
+    level: user.level,
     email: user.email,
   };
 }

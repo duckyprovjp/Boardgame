@@ -1,154 +1,141 @@
 {
-  "startingLives": 3,
-  "maxLives": 5,
-  "startingHandSize": 4,
-  "dieFaces": [
-    {
-      "id": "draw_card",
-      "label": "Rút Định Mệnh",
-      "emoji": "🃏",
-      "description": "Rút thêm 1 lá bài định mệnh",
-      "effect": { "type": "DRAW_CARD", "count": 1 }
-    },
-    {
-      "id": "safe_turn",
-      "label": "Bình An",
-      "emoji": "🍀",
-      "description": "Lượt an toàn, không có biến cố",
-      "effect": { "type": "NOOP" }
-    },
-    {
-      "id": "heal_one",
-      "label": "Hồi Sinh",
-      "emoji": "💚",
-      "description": "Hồi 1 mạng (tối đa 5 mạng)",
-      "effect": { "type": "HEAL", "amount": 1 }
-    },
-    {
-      "id": "everyone_lose_one",
-      "label": "Thiên Tai",
-      "emoji": "🌋",
-      "description": "Tất cả người chơi đang sống mất 1 mạng",
-      "effect": { "type": "ALL_LOSE_LIFE", "amount": 1 }
-    },
-    {
-      "id": "target_penalty",
-      "label": "Chỉ Định",
-      "emoji": "🎯",
-      "description": "Chọn 1 người chơi khác bị mất 1 mạng",
-      "effect": { "type": "TARGET_LOSE_LIFE", "amount": 1 }
-    },
-    {
-      "id": "ban_red",
-      "label": "Phong Ấn Đỏ",
-      "emoji": "🚫",
-      "description": "Cấm đánh thẻ Đỏ trong vòng này",
-      "effect": { "type": "BAN_DECK", "deck": "red" }
-    }
-  ],
+  "deckSize": 50,
+  "timers": {
+    "turnSec": 20,
+    "reactionWindowMs": 5000
+  },
+  "lethalFacesByAliveCount": {
+    "gte6": [1],
+    "5": [1, 6],
+    "4": [1, 5, 6],
+    "3": [1, 4, 5, 6],
+    "2": [1, 3, 5]
+  },
+  "assumptions": {
+    "secretSwapTrueExchange": true,
+    "forcedRerollOncePerRoll": true,
+    "nullifyAnyReactionWindow": true
+  },
   "cards": [
     {
-      "id": "green_shield",
-      "deck": "green",
-      "name": "Khiên Bảo Hộ",
-      "emoji": "🛡️",
-      "description": "Chặn 1 lần mất mạng tiếp theo",
-      "copies": 4,
-      "requiresTarget": false,
-      "effect": { "type": "ADD_SHIELD", "amount": 1 }
+      "id": "nullify",
+      "name": "Khóa Chức Năng",
+      "color": "green",
+      "count": 5,
+      "timing": "ANY_REACTION",
+      "requiresTarget": "other_alive",
+      "description": "Phá hủy ngay thẻ bài đang úp của 1 người chơi khác mà không kích hoạt hiệu ứng.",
+      "effectOps": [{ "op": "DESTROY_CARD" }]
     },
     {
-      "id": "green_cancel",
-      "deck": "green",
-      "name": "Hoá Giải",
-      "emoji": "✨",
-      "description": "Huỷ bỏ 1 thẻ Đỏ vừa được đánh ra",
-      "copies": 5,
-      "requiresTarget": false,
-      "effect": { "type": "CANCEL_RED" }
+      "id": "rule_lock",
+      "name": "Luật Cố Định",
+      "color": "green",
+      "count": 4,
+      "timing": "BEFORE_ROLL_OWN",
+      "requiresTarget": "none",
+      "description": "Trong lượt tung này, mặt nổ của bạn cố định là [1, 2], bỏ qua bảng số người sống.",
+      "effectOps": [{ "op": "SET_LETHAL_FACES", "faces": [1, 2] }]
     },
     {
-      "id": "green_heal",
-      "deck": "green",
-      "name": "Thuốc Tiên",
-      "emoji": "🧪",
-      "description": "Hồi ngay 1 mạng",
-      "copies": 4,
-      "requiresTarget": false,
-      "effect": { "type": "HEAL", "amount": 1 }
+      "id": "odds_shift",
+      "name": "Đảo Ngược Tỷ Lệ",
+      "color": "green",
+      "count": 4,
+      "timing": "BEFORE_ROLL_OWN",
+      "requiresTarget": "none",
+      "description": "Trong lượt tung này, mặt nổ đổi thành [5, 6] (các mặt 1-4 đều an toàn).",
+      "effectOps": [{ "op": "SET_LETHAL_FACES", "faces": [5, 6] }]
     },
     {
-      "id": "green_swap",
-      "deck": "green",
-      "name": "Hoán Đổi",
-      "emoji": "🔄",
-      "description": "Đổi ngẫu nhiên 1 lá bài với người chơi khác",
-      "copies": 3,
-      "requiresTarget": true,
-      "effect": { "type": "SWAP_CARD_RANDOM" }
+      "id": "blast_shield",
+      "name": "Bộ Giáp Chống Nổ",
+      "color": "green",
+      "count": 5,
+      "timing": "ON_ELIMINATED_OWN",
+      "requiresTarget": "none",
+      "description": "Hủy bỏ vụ nổ của chính bạn và chuyển xúc xắc theo kết quả như lượt an toàn.",
+      "effectOps": [{ "op": "CANCEL_OWN_EXPLOSION" }]
     },
     {
-      "id": "green_peek",
-      "deck": "green",
-      "name": "Thấu Thị",
-      "emoji": "👁️",
-      "description": "Xem bí mật bài trên tay của 1 đối thủ",
-      "copies": 3,
-      "requiresTarget": true,
-      "effect": { "type": "PEEK_HAND" }
+      "id": "evade",
+      "name": "Thoát Thân",
+      "color": "green",
+      "count": 4,
+      "timing": "BEFORE_ROLL_OWN",
+      "requiresTarget": "adjacent_alive",
+      "description": "Bỏ qua lượt tung xúc xắc và chuyền ngay cho người sống liền kề (trái hoặc phải).",
+      "effectOps": [{ "op": "SKIP_ROLL_PASS_TO" }]
     },
     {
-      "id": "red_strike",
-      "deck": "red",
-      "name": "Đòn Chí Mạng",
-      "emoji": "⚔️",
-      "description": "Mục tiêu bị mất 1 mạng",
-      "copies": 5,
-      "requiresTarget": true,
-      "effect": { "type": "LOSE_LIFE", "amount": 1 }
+      "id": "secret_swap",
+      "name": "Hoán Đổi Bí Mật",
+      "color": "green",
+      "count": 3,
+      "timing": "BEFORE_ROLL_OWN",
+      "requiresTarget": "other_alive_with_card",
+      "description": "Đổi thẻ bài của bạn lấy thẻ bài đang úp của 1 người chơi khác.",
+      "effectOps": [{ "op": "SWAP_CARDS" }]
     },
     {
-      "id": "red_dare",
-      "deck": "red",
-      "name": "Thử Thách Định Mệnh",
-      "emoji": "🎭",
-      "description": "Hiện thử thách vui cho mục tiêu trước cả bàn",
-      "copies": 4,
-      "requiresTarget": true,
-      "effect": {
-        "type": "DARE_TEXT",
-        "prompt": "Thử thách: Kể tên 1 món ăn bạn thích nhất hoặc thú nhận 1 bí mật nhỏ!"
-      }
+      "id": "counter_detonator",
+      "name": "Bẫy Phản Kích",
+      "color": "red",
+      "count": 5,
+      "timing": "ON_RECEIVE_DIE",
+      "requiresTarget": "none",
+      "description": "Khi vừa nhận xúc xắc, người vừa chuyền cho bạn phát nổ ngay lập tức và bạn giữ lượt.",
+      "effectOps": [{ "op": "EXPLODE_PASSER" }]
     },
     {
-      "id": "red_steal",
-      "deck": "red",
-      "name": "Cướp Bài",
-      "emoji": "🦊",
-      "description": "Cướp ngẫu nhiên 1 lá bài từ mục tiêu",
-      "copies": 4,
-      "requiresTarget": true,
-      "effect": { "type": "STEAL_CARD" }
+      "id": "forced_reroll",
+      "name": "Ép Tung Lại",
+      "color": "red",
+      "count": 5,
+      "timing": "AFTER_ROLL_OTHER",
+      "requiresTarget": "none",
+      "description": "Hủy kết quả vừa tung của đối thủ và ép họ tung lại (kết quả lần 2 là cuối cùng).",
+      "effectOps": [{ "op": "REROLL_TARGET" }]
     },
     {
-      "id": "red_skip",
-      "deck": "red",
-      "name": "Khoá Lượt",
-      "emoji": "⛓️",
-      "description": "Mục tiêu bị mất lượt kế tiếp",
-      "copies": 3,
-      "requiresTarget": true,
-      "effect": { "type": "SKIP_NEXT" }
+      "id": "triple_verdict",
+      "name": "Phán Quyết Ba Người",
+      "color": "red",
+      "count": 4,
+      "timing": "START_OF_TURN_THREE_ALIVE",
+      "requiresTarget": "any_alive",
+      "description": "Khi bàn còn đúng 3 người sống, chọn 1 người chơi để loại ngay lập tức.",
+      "effectOps": [{ "op": "EXPLODE_TARGET" }]
     },
     {
-      "id": "red_curse",
-      "deck": "red",
-      "name": "Lời Nguyền",
-      "emoji": "💀",
-      "description": "Mục tiêu bị mất 2 mạng",
-      "copies": 2,
-      "requiresTarget": true,
-      "effect": { "type": "LOSE_LIFE", "amount": 2 }
+      "id": "chain_reaction",
+      "name": "Đồng Quy Vu Tận",
+      "color": "red",
+      "count": 4,
+      "timing": "ON_ELIMINATED_OWN",
+      "requiresTarget": "other_alive",
+      "description": "Khi bị nổ, kéo theo 1 người chơi khác nổ cùng bạn.",
+      "effectOps": [{ "op": "CHAIN_ELIMINATE" }]
+    },
+    {
+      "id": "hazard_boost",
+      "name": "Tăng Tỷ Lệ Nổ",
+      "color": "red",
+      "count": 4,
+      "timing": "BEFORE_ROLL_OTHER",
+      "requiresTarget": "none",
+      "description": "Thêm mặt 2 (hoặc mặt an toàn nhỏ nhất) vào danh sách mặt nổ của người sắp tung.",
+      "effectOps": [{ "op": "ADD_LETHAL_FACE", "preferredFace": 2 }]
+    },
+    {
+      "id": "hot_potato",
+      "name": "Đẩy Xúc Xắc",
+      "color": "red",
+      "count": 3,
+      "timing": "BEFORE_ROLL_OWN",
+      "requiresTarget": "other_alive",
+      "description": "Bỏ qua lượt tung và đẩy xúc xắc cho bất kỳ người sống nào khác tung thay.",
+      "effectOps": [{ "op": "FORCE_TARGET_ROLL" }]
     }
   ]
 }

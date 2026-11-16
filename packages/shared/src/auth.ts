@@ -50,6 +50,8 @@ export interface AuthUser {
   username: string;
   avatarId: string;
   isGuest: boolean;
+  xp: number;
+  level: number;
   email?: string | null;
 }
 
@@ -58,4 +60,5 @@ export interface PublicUser {
   username: string;
   avatarId: string;
   isGuest: boolean;
+  level?: number;
 }

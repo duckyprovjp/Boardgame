@@ -84,5 +84,20 @@ export async function recordMatchStats(
         elo: nextElo,
       },
     });
+
+    // Award XP & update level (no currency/chips)
+    const xpGain = won ? 50 : 20;
+    const u = await prisma.user.findUnique({
+      where: { id: r.playerId },
+      select: { xp: true },
+    });
+    if (u) {
+      const nextXp = u.xp + xpGain;
+      const nextLevel = Math.floor(nextXp / 100) + 1;
+      await prisma.user.update({
+        where: { id: r.playerId },
+        data: { xp: nextXp, level: nextLevel },
+      });
+    }
   }
 }

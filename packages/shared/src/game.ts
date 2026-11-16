@@ -7,6 +7,7 @@ export interface GamePlayer {
   id: string;
   username: string;
   avatarId: string;
+  level?: number;
   isBot?: boolean;
 }
 

@@ -49,6 +49,8 @@ profileRouter.patch('/', requireAuth, async (req: AuthenticatedRequest, res) => 
       username: updated.username,
       avatarId: updated.avatarId,
       isGuest: updated.isGuest,
+      xp: updated.xp,
+      level: updated.level,
       email: updated.email,
     },
   });

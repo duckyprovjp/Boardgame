@@ -52,10 +52,11 @@ export class GameManager {
       id: m.id,
       username: m.username,
       avatarId: m.avatarId,
+      level: m.level ?? 1,
       isBot: m.isBot,
     }));
 
-    const state = module.setup(players);
+    const state = module.setup(players, room.options);
     const session: ActiveGameSession = {
       roomCode: room.code,
       gameId: room.gameId,

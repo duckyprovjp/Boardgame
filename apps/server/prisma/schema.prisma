@@ -22,6 +22,8 @@ model User {
   username     String    @unique
   avatarId     String    @default("fox")
   isGuest      Boolean   @default(false)
+  xp           Int       @default(0)
+  level        Int       @default(1)
   isAdmin      Boolean   @default(false)
   isBanned     Boolean   @default(false)
   createdAt    DateTime  @default(now())

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import {
   getGameCatalogItem,
+  parseRoomOptions,
   type CreateRoomInput,
   type GameId,
   type PublicUser,
@@ -59,6 +60,7 @@ export class RoomManager {
     memberCount: number;
     maxPlayers: number;
     hostUsername: string;
+    options: Record<string, unknown>;
   }> {
     const list: Array<{
       code: string;
@@ -66,6 +68,7 @@ export class RoomManager {
       memberCount: number;
       maxPlayers: number;
       hostUsername: string;
+      options: Record<string, unknown>;
     }> = [];
     for (const room of this.rooms.values()) {
       if (room.visibility === 'public' && room.status === 'lobby' && room.members.length < room.maxPlayers) {
@@ -76,6 +79,7 @@ export class RoomManager {
           memberCount: room.members.length,
           maxPlayers: room.maxPlayers,
           hostUsername: host?.username ?? '',
+          options: room.options,
         });
       }
     }
@@ -96,6 +100,7 @@ export class RoomManager {
       gameId: input.gameId,
       maxPlayers,
       visibility: input.visibility,
+      options: parseRoomOptions(input.gameId, input.options),
       status: 'lobby',
       hostId: host.id,
       members: [
@@ -333,6 +338,7 @@ export class RoomManager {
       gameId,
       maxPlayers: players.length,
       visibility: 'private',
+      options: parseRoomOptions(gameId),
       status: 'in_game',
       hostId: host.id,
       members,

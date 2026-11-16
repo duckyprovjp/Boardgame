@@ -81,6 +81,8 @@ export async function getUserFromSessionToken(rawToken: string): Promise<AuthUse
     username: session.user.username,
     avatarId: session.user.avatarId,
     isGuest: session.user.isGuest,
+    xp: session.user.xp,
+    level: session.user.level,
     email: session.user.email,
   };
 }
