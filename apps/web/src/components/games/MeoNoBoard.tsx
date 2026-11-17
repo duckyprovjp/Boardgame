@@ -100,23 +100,36 @@ export function MeoNoBoard({ view, onAction }: MeoNoBoardProps) {
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-between gap-4 py-4">
-      {/* Center Piles: Deck + Discard + Status */}
+      {/* Center Piles: Deck (stacked) + Discard (animated) + Status */}
       <div className="flex flex-wrap items-center justify-center gap-6">
-        <button
-          type="button"
-          disabled={!canDraw}
-          onClick={() => onAction({ type: 'DRAW_CARD' })}
-          className={`flex h-24 w-16 flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-slate-950/90 text-xs font-bold text-white shadow-xl transition-all duration-150 ${
-            canDraw ? 'cursor-pointer ring-2 ring-rose-400 hover:-translate-y-1.5' : 'opacity-75'
-          }`}
-        >
-          <span className="text-[10px] uppercase tracking-wider text-slate-300">Nọc</span>
-          <span className="mt-1 text-base font-black text-emerald-300">{view.deckCount}</span>
-          {canDraw && <span className="mt-1 text-[9px] text-rose-300">Rút bài</span>}
-        </button>
+        <div className="relative h-24 w-16">
+          {view.deckCount > 2 && (
+            <div className="pointer-events-none absolute inset-0 -translate-x-1 translate-y-1 rounded-xl border border-white/20 bg-slate-950/90 shadow" />
+          )}
+          {view.deckCount > 1 && (
+            <div className="pointer-events-none absolute inset-0 -translate-x-0.5 translate-y-0.5 rounded-xl border border-white/30 bg-slate-900/90 shadow" />
+          )}
+          <button
+            type="button"
+            disabled={!canDraw}
+            onClick={() => onAction({ type: 'DRAW_CARD' })}
+            className={`relative flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-slate-950/95 text-xs font-bold text-white shadow-xl transition-all duration-150 ${
+              canDraw
+                ? 'cursor-pointer ring-2 ring-rose-400 hover:-translate-y-1.5'
+                : 'opacity-75'
+            }`}
+          >
+            <span className="text-[10px] uppercase tracking-wider text-slate-300">Nọc</span>
+            <span className="mt-1 text-base font-black text-emerald-300">{view.deckCount}</span>
+            {canDraw && <span className="mt-1 text-[9px] text-rose-300">Rút bài</span>}
+          </button>
+        </div>
 
         {view.topDiscard ? (
-          <div className="flex h-24 w-16 rotate-[4deg] flex-col items-center justify-center rounded-xl border-2 border-amber-300/60 bg-slate-900 p-1.5 text-center shadow-2xl">
+          <div
+            key={view.topDiscard.id}
+            className="animate-card-play flex h-24 w-16 flex-col items-center justify-center rounded-xl border-2 border-amber-300/60 bg-slate-900 p-1.5 text-center shadow-2xl"
+          >
             <span className="text-xl">{MEO_NO_CARDS[view.topDiscard.kind].emoji}</span>
             <span className="mt-1 line-clamp-2 text-[10px] font-bold leading-tight text-white">
               {MEO_NO_CARDS[view.topDiscard.kind].name}

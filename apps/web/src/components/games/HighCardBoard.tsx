@@ -23,7 +23,12 @@ export function HighCardBoard({ view, onAction }: HighCardBoardProps) {
           {view.players.map((p) => (
             <div key={p.id} className="flex flex-col items-center gap-1.5">
               {p.playedCard ? (
-                <PlayingCardTile card={p.playedCard} size="sm" />
+                <div
+                  key={`${p.id}-${p.playedCard.suit}-${p.playedCard.rank}`}
+                  className="animate-card-play"
+                >
+                  <PlayingCardTile card={p.playedCard} size="sm" />
+                </div>
               ) : (
                 <PlayingCardTile faceDown size="sm" />
               )}

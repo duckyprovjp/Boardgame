@@ -83,6 +83,8 @@ export interface DiceFateState {
   alive: Record<string, boolean>;
   eliminationOrder: string[];
   cards: Record<string, DiceFateCardInstance | null>;
+  deckCount: number;
+  discardPile: DiceFateCardInstance[];
   activePlayerId: string;
   lastPasserId: string | null;
   explodingPlayerId: string | null;
@@ -112,6 +114,8 @@ export interface DiceFatePlayerView {
   explodingPlayerId: string | null;
   myPlayerId: string;
   myCard: DiceFateCardInstance | null;
+  deckCount: number;
+  recentDiscard: DiceFateCardInstance[];
   lastDieValue: number | null;
   effectiveLethalFaces: number[];
   windowPassedIds: string[];
@@ -422,6 +426,8 @@ export function createDiceFateModule(
         alive,
         eliminationOrder: [],
         cards,
+        deckCount: shuffled.length,
+        discardPile: [],
         activePlayerId: firstHolder.id,
         lastPasserId: null,
         explodingPlayerId: null,
@@ -608,16 +614,19 @@ export function createDiceFateModule(
       let nextState: DiceFateState = {
         ...state,
         cards: nextCards,
+        discardPile: [...(state.discardPile ?? []), playedCard],
         actionLog: nextLog,
       };
 
       for (const op of def.effectOps) {
         switch (op.op) {
           case 'DESTROY_CARD': {
-            if (action.targetId && nextState.cards[action.targetId]) {
+            const destroyed = action.targetId ? nextState.cards[action.targetId] : null;
+            if (action.targetId && destroyed) {
               nextState = {
                 ...nextState,
                 cards: { ...nextState.cards, [action.targetId]: null },
+                discardPile: [...nextState.discardPile, destroyed],
               };
             }
             break;
@@ -772,6 +781,8 @@ export function createDiceFateModule(
         explodingPlayerId: state.explodingPlayerId,
         myPlayerId: playerId,
         myCard: state.cards[playerId] ?? null,
+        deckCount: state.deckCount ?? 0,
+        recentDiscard: (state.discardPile ?? []).slice(-4),
         lastDieValue: state.lastDieValue,
         effectiveLethalFaces: computeEffectiveLethalFaces(state, rules),
         windowPassedIds: [...state.windowPassedIds],

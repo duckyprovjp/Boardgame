@@ -109,6 +109,7 @@ export default function PlayPage() {
         level: p.level ?? 1,
         isCurrentTurn: v.activePlayerId === p.id,
         eliminated: !p.alive,
+        cardCount: p.hasCard ? 1 : 0,
         away: member ? !member.connected : false,
         badge: v.activePlayerId === p.id ? 'Cầm xúc xắc' : undefined,
         sublabel: !p.alive ? 'Đã bị loại' : p.hasCard ? 'Có 1 thẻ úp' : 'Hết thẻ',

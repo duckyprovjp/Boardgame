@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import type { DiceFateAction, DiceFatePlayerView } from '@boardgame/shared';
 
 interface DiceFateBoardProps {
@@ -72,21 +72,83 @@ export function DiceFateBoard({ view, onAction }: DiceFateBoardProps) {
     }
   };
 
+  const canPlayMyCard = playCardActions.length > 0;
+  const recentDiscard = view.recentDiscard ?? [];
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-between py-14 sm:py-16">
-      {/* Center 3D-looking Die & Lethal Faces */}
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div
-          className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-amber-400/70 bg-gradient-to-br from-stone-800 to-stone-950 text-3xl font-black text-white shadow-[0_10px_25px_rgba(0,0,0,0.6)] transition-transform ${
-            shaking ? 'animate-bounce' : ''
-          }`}
-        >
-          {view.lastDieValue ?? '?'}
-        </div>
+      {/* Center: Draw Pile + Die + Discard Pile */}
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex items-center justify-center gap-5 sm:gap-7">
+          {/* Draw Pile (Chồng bài rút) */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="relative h-24 w-16">
+              {view.deckCount > 2 && (
+                <div className="absolute inset-0 -translate-x-1 translate-y-1 rounded-xl border border-white/20 bg-slate-950/90 shadow" />
+              )}
+              {view.deckCount > 1 && (
+                <div className="absolute inset-0 -translate-x-0.5 translate-y-0.5 rounded-xl border border-white/30 bg-slate-900/90 shadow" />
+              )}
+              <div className="relative flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-xs font-bold text-white shadow-xl">
+                <span className="text-[10px] uppercase tracking-wider text-slate-300">Nọc</span>
+                <span className="mt-1 text-base font-black text-amber-300">{view.deckCount}</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-medium text-white/75">Bài rút</span>
+          </div>
 
-        <p className="text-[11px] text-amber-200">
-          Mặt nổ hiện tại: [{view.effectiveLethalFaces.join(', ')}]
-        </p>
+          {/* Center 3D-looking Die */}
+          <div className="flex flex-col items-center gap-1.5">
+            <div
+              className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-amber-400/70 bg-gradient-to-br from-stone-800 to-stone-950 text-3xl font-black text-white shadow-[0_10px_25px_rgba(0,0,0,0.6)] transition-transform ${
+                shaking ? 'animate-bounce' : ''
+              }`}
+            >
+              {view.lastDieValue ?? '?'}
+            </div>
+            <p className="text-[11px] text-amber-200">
+              Mặt nổ: [{view.effectiveLethalFaces.join(', ')}]
+            </p>
+          </div>
+
+          {/* Discard Pile (Chồng bài đã đánh ở giữa bàn cho mọi người) */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="relative h-24 w-16">
+              {recentDiscard.length === 0 ? (
+                <div className="flex h-full w-full items-center justify-center rounded-xl border-2 border-dashed border-white/25 bg-slate-950/40 text-center text-[10px] text-white/50">
+                  Chưa đánh
+                </div>
+              ) : (
+                recentDiscard.map((inst, idx, arr) => {
+                  const def = view.rules.cards.find((c) => c.id === inst.defId);
+                  const isTop = idx === arr.length - 1;
+                  const rotDeg = isTop ? 4 : idx % 2 === 0 ? -7 : 7;
+                  return (
+                    <div
+                      key={inst.instanceId}
+                      title={def ? `${def.name}: ${def.description}` : inst.defId}
+                      style={{ '--card-rot': `${rotDeg}deg` } as CSSProperties}
+                      className={`absolute inset-0 flex flex-col items-center justify-between rounded-xl border-2 p-1.5 text-center shadow-2xl transition-transform ${
+                        def?.color === 'green'
+                          ? 'border-emerald-300 bg-emerald-900 text-white'
+                          : 'border-rose-300 bg-rose-900 text-white'
+                      } ${isTop ? 'animate-card-play hover:z-30 hover:scale-110' : 'opacity-80'}`}
+                    >
+                      <span className="rounded bg-black/35 px-1 py-0.5 text-[8px] font-bold uppercase text-amber-300">
+                        {def?.color === 'green' ? 'Xanh' : 'Đỏ'}
+                      </span>
+                      <span className="line-clamp-3 text-[10px] font-black leading-tight">
+                        {def?.name ?? inst.defId}
+                      </span>
+                      <span className="text-[8px] text-white/75">{def?.timing ?? ''}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <span className="text-[10px] font-medium text-white/75">Đã đánh</span>
+          </div>
+        </div>
 
         {view.phase === 'ON_ELIMINATED_WINDOW' && (
           <div className="animate-pulse rounded-xl bg-rose-600/90 px-4 py-1.5 text-sm font-black text-white shadow-lg">
@@ -179,8 +241,8 @@ export function DiceFateBoard({ view, onAction }: DiceFateBoardProps) {
         </div>
       )}
 
-      {/* Reaction window (indistinguishable for all alive players) + Hero single card */}
-      <div className="flex w-full flex-col items-center gap-2 px-4 pb-8">
+      {/* Reaction window (indistinguishable for all alive players) + Hero card with hover-lift */}
+      <div className="flex w-full flex-col items-center gap-2 px-4 pb-2 pt-4">
         {isReactionWindow && canPassWindow && (
           <div className="flex items-center gap-3 rounded-xl border border-white/20 bg-slate-950/90 px-4 py-2 text-xs">
             <span className="text-slate-200">Cửa sổ thẻ ({view.phase})</span>
@@ -197,25 +259,26 @@ export function DiceFateBoard({ view, onAction }: DiceFateBoardProps) {
         {cardDef ? (
           <button
             type="button"
-            disabled={playCardActions.length === 0}
+            aria-disabled={!canPlayMyCard}
+            title={`${cardDef.name}: ${cardDef.description}`}
             onClick={handlePlayMyCard}
-            className={`max-w-xs rounded-xl border-2 px-4 py-2.5 text-left transition ${
+            className={`relative max-w-xs rounded-xl border-2 px-4 py-3 text-left shadow-xl transition-all duration-150 ease-out hover:z-30 hover:scale-105 hover:shadow-2xl ${
               cardDef.color === 'green'
-                ? 'border-emerald-400 bg-emerald-950/80'
-                : 'border-rose-400 bg-rose-950/80'
+                ? 'border-emerald-400 bg-emerald-950/90'
+                : 'border-rose-400 bg-rose-950/90'
             } ${
-              playCardActions.length > 0
-                ? 'cursor-pointer ring-2 ring-amber-400 hover:-translate-y-1'
-                : 'opacity-75'
+              canPlayMyCard
+                ? '-translate-y-1.5 cursor-pointer ring-2 ring-amber-400 hover:-translate-y-5'
+                : 'cursor-default opacity-85 hover:-translate-y-4 hover:opacity-100'
             }`}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-bold text-white">{cardDef.name}</span>
-              <span className="rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-amber-300">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-white">{cardDef.name}</span>
+              <span className="rounded bg-black/40 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
                 {cardDef.timing}
               </span>
             </div>
-            <p className="mt-1 text-[11px] text-slate-200">{cardDef.description}</p>
+            <p className="mt-1 text-[11px] leading-snug text-slate-200">{cardDef.description}</p>
           </button>
         ) : (
           <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-xs text-slate-400">

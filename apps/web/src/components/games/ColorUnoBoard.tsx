@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   UNO_COLORS,
   UNO_COLOR_LABELS,
@@ -57,30 +57,42 @@ export function ColorUnoBoard({ view, onAction }: ColorUnoBoardProps) {
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-between py-14 sm:py-16">
-      {/* Center Piles: Draw pile upper-left + Discard pile center */}
+      {/* Center Piles: Draw pile (stacked) + Discard pile (animated) */}
       <div className="flex items-center justify-center gap-6">
-        <button
-          type="button"
-          disabled={!canDraw}
-          onClick={() => onAction({ type: 'DRAW_CARD' })}
-          className={`flex h-24 w-16 flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-slate-950/90 text-xs font-bold text-white shadow-xl transition ${
-            canDraw ? 'cursor-pointer ring-2 ring-amber-400 hover:-translate-y-1' : 'opacity-70'
-          }`}
-        >
-          <span>NỌC</span>
-          <span className="mt-1 text-amber-300">{view.deckCount}</span>
-        </button>
+        <div className="relative h-24 w-16">
+          {view.deckCount > 2 && (
+            <div className="pointer-events-none absolute inset-0 -translate-x-1 translate-y-1 rounded-xl border border-white/20 bg-slate-950/90 shadow" />
+          )}
+          {view.deckCount > 1 && (
+            <div className="pointer-events-none absolute inset-0 -translate-x-0.5 translate-y-0.5 rounded-xl border border-white/30 bg-slate-900/90 shadow" />
+          )}
+          <button
+            type="button"
+            disabled={!canDraw}
+            onClick={() => onAction({ type: 'DRAW_CARD' })}
+            className={`relative flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-slate-950/95 text-xs font-bold text-white shadow-xl transition-all duration-150 ${
+              canDraw
+                ? 'cursor-pointer ring-2 ring-amber-400 hover:-translate-y-1.5'
+                : 'opacity-75'
+            }`}
+          >
+            <span>NỌC</span>
+            <span className="mt-1 text-amber-300">{view.deckCount}</span>
+          </button>
+        </div>
 
-        {/* Rotated Discard Pile */}
+        {/* Rotated Discard Pile with play animation */}
         <div className="relative h-24 w-16">
           {(view.recentDiscard ?? [view.topCard]).map((card, i, arr) => {
-            const rot = i === arr.length - 1 ? 'rotate-[4deg]' : 'rotate-[-8deg] opacity-80';
+            const isTop = i === arr.length - 1;
+            const rotDeg = isTop ? 4 : i % 2 === 0 ? -8 : 8;
             return (
               <div
                 key={card.id}
-                className={`absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 p-1.5 text-center text-xs font-black shadow-2xl ${rot} ${
+                style={{ '--card-rot': `${rotDeg}deg` } as CSSProperties}
+                className={`absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 p-1.5 text-center text-xs font-black shadow-2xl ${
                   COLOR_STYLES[card.color]
-                }`}
+                } ${isTop ? 'animate-card-play' : 'opacity-80'}`}
               >
                 {formatUnoCardLabel(card)}
               </div>
