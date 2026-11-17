@@ -56,9 +56,9 @@ export function ColorUnoBoard({ view, onAction }: ColorUnoBoardProps) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-between py-14 sm:py-16">
-      {/* Center Piles: Draw pile (stacked) + Discard pile (animated) */}
-      <div className="flex items-center justify-center gap-6">
+    <div className="relative flex h-full w-full flex-col items-center justify-between pt-16 pb-4 sm:pt-20 sm:pb-6">
+      {/* Draw Pile in top-left corner so it never overlaps players */}
+      <div className="absolute left-4 top-4 z-20 flex flex-col items-center gap-1 sm:left-7 sm:top-5">
         <div className="relative h-24 w-16">
           {view.deckCount > 2 && (
             <div className="pointer-events-none absolute inset-0 -translate-x-1 translate-y-1 rounded-xl border border-white/20 bg-slate-950/90 shadow" />
@@ -73,97 +73,103 @@ export function ColorUnoBoard({ view, onAction }: ColorUnoBoardProps) {
             className={`relative flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-slate-950/95 text-xs font-bold text-white shadow-xl transition-all duration-150 ${
               canDraw
                 ? 'cursor-pointer ring-2 ring-amber-400 hover:-translate-y-1.5'
-                : 'opacity-75'
+                : 'opacity-80'
             }`}
           >
             <span>NỌC</span>
             <span className="mt-1 text-amber-300">{view.deckCount}</span>
           </button>
         </div>
-
-        {/* Rotated Discard Pile with play animation */}
-        <div className="relative h-24 w-16">
-          {(view.recentDiscard ?? [view.topCard]).map((card, i, arr) => {
-            const isTop = i === arr.length - 1;
-            const rotDeg = isTop ? 4 : i % 2 === 0 ? -8 : 8;
-            return (
-              <div
-                key={card.id}
-                style={{ '--card-rot': `${rotDeg}deg` } as CSSProperties}
-                className={`absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 p-1.5 text-center text-xs font-black shadow-2xl ${
-                  COLOR_STYLES[card.color]
-                } ${isTop ? 'animate-card-play' : 'opacity-80'}`}
-              >
-                {formatUnoCardLabel(card)}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="space-y-1 text-left text-[11px]">
-          <span
-            className={`inline-block rounded-full px-2.5 py-0.5 font-bold shadow ${
-              ACTIVE_COLOR_BADGE[view.activeColor]
-            }`}
-          >
-            {UNO_COLOR_LABELS[view.activeColor]}
-          </span>
-          <p className="text-white/90">{view.direction === 1 ? '↻ Thuận' : '↺ Ngược'}</p>
-          {view.roundsMode === '500' && <p className="text-amber-200">Ván #{view.roundNumber}</p>}
-        </div>
+        <span className="text-[10px] font-medium text-white/75">Bài rút</span>
       </div>
 
-      {/* Center WD4 Challenge Prompt */}
-      {view.phase === 'wd4_challenge' && view.wd4Prompt && (canChallenge || canDecline) && (
-        <div className="z-30 rounded-2xl border border-amber-400 bg-slate-950/95 p-4 text-center shadow-2xl">
-          <p className="mb-3 text-xs font-semibold text-white">
-            <strong>{view.wd4Prompt.offenderUsername}</strong> vừa đánh lá Đổi Màu +4 nhắm vào bạn!
-          </p>
-          <div className="flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => onAction({ type: 'CHALLENGE_WD4' })}
-              className="cursor-pointer rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white hover:bg-rose-400"
+      {/* Center of the table: Discard Pile + Active Color / Direction + Prompts */}
+      <div className="flex flex-1 flex-col items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-4">
+          {/* Rotated Discard Pile with play animation */}
+          <div className="relative h-24 w-16 sm:h-28 sm:w-[4.5rem]">
+            {(view.recentDiscard ?? [view.topCard]).map((card, i, arr) => {
+              const isTop = i === arr.length - 1;
+              const rotDeg = isTop ? 4 : i % 2 === 0 ? -8 : 8;
+              return (
+                <div
+                  key={card.id}
+                  style={{ '--card-rot': `${rotDeg}deg` } as CSSProperties}
+                  className={`absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 p-1.5 text-center text-xs font-black shadow-2xl ${
+                    COLOR_STYLES[card.color]
+                  } ${isTop ? 'animate-card-play' : 'opacity-80'}`}
+                >
+                  {formatUnoCardLabel(card)}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="space-y-1 text-left text-[11px]">
+            <span
+              className={`inline-block rounded-full px-2.5 py-0.5 font-bold shadow ${
+                ACTIVE_COLOR_BADGE[view.activeColor]
+              }`}
             >
-              Thách đấu
-            </button>
-            <button
-              type="button"
-              onClick={() => onAction({ type: 'DECLINE_WD4' })}
-              className="cursor-pointer rounded-xl border border-slate-600 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
-            >
-              Từ chối (Rút 4)
-            </button>
+              {UNO_COLOR_LABELS[view.activeColor]}
+            </span>
+            <p className="text-white/90">{view.direction === 1 ? '↻ Thuận' : '↺ Ngược'}</p>
+            {view.roundsMode === '500' && <p className="text-amber-200">Ván #{view.roundNumber}</p>}
           </div>
         </div>
-      )}
 
-      {/* Wild color picker */}
-      {pendingWildCard && (
-        <div className="z-30 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400 bg-slate-950/95 px-4 py-2.5 shadow-xl">
-          <span className="text-xs font-semibold text-amber-300">Chọn màu:</span>
-          {UNO_COLORS.map((color) => (
+        {/* Center WD4 Challenge Prompt */}
+        {view.phase === 'wd4_challenge' && view.wd4Prompt && (canChallenge || canDecline) && (
+          <div className="z-30 rounded-2xl border border-amber-400 bg-slate-950/95 p-4 text-center shadow-2xl">
+            <p className="mb-3 text-xs font-semibold text-white">
+              <strong>{view.wd4Prompt.offenderUsername}</strong> vừa đánh lá Đổi Màu +4 nhắm vào bạn!
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => onAction({ type: 'CHALLENGE_WD4' })}
+                className="cursor-pointer rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white hover:bg-rose-400"
+              >
+                Thách đấu
+              </button>
+              <button
+                type="button"
+                onClick={() => onAction({ type: 'DECLINE_WD4' })}
+                className="cursor-pointer rounded-xl border border-slate-600 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+              >
+                Từ chối (Rút 4)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Wild color picker */}
+        {pendingWildCard && (
+          <div className="z-30 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400 bg-slate-950/95 px-4 py-2.5 shadow-xl">
+            <span className="text-xs font-semibold text-amber-300">Chọn màu:</span>
+            {UNO_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => {
+                  onAction({ type: 'PLAY_CARD', cardId: pendingWildCard.id, chosenColor: color });
+                  setPendingWildCard(null);
+                }}
+                className={`cursor-pointer rounded-lg px-3 py-1 text-xs font-bold ${ACTIVE_COLOR_BADGE[color]}`}
+              >
+                {UNO_COLOR_LABELS[color]}
+              </button>
+            ))}
             <button
-              key={color}
               type="button"
-              onClick={() => {
-                onAction({ type: 'PLAY_CARD', cardId: pendingWildCard.id, chosenColor: color });
-                setPendingWildCard(null);
-              }}
-              className={`cursor-pointer rounded-lg px-3 py-1 text-xs font-bold ${ACTIVE_COLOR_BADGE[color]}`}
+              onClick={() => setPendingWildCard(null)}
+              className="cursor-pointer rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300"
             >
-              {UNO_COLOR_LABELS[color]}
+              Huỷ
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setPendingWildCard(null)}
-            className="cursor-pointer rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300"
-          >
-            Huỷ
-          </button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* Action buttons + Fanned Hero Hand at bottom */}
       <div className="flex w-full flex-col items-center gap-2 px-4 pb-8">

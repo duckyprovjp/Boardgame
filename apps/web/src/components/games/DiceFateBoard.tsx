@@ -76,27 +76,27 @@ export function DiceFateBoard({ view, onAction }: DiceFateBoardProps) {
   const recentDiscard = view.recentDiscard ?? [];
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-between py-14 sm:py-16">
-      {/* Center: Draw Pile + Die + Discard Pile */}
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex items-center justify-center gap-5 sm:gap-7">
-          {/* Draw Pile (Chồng bài rút) */}
-          <div className="flex flex-col items-center gap-1">
-            <div className="relative h-24 w-16">
-              {view.deckCount > 2 && (
-                <div className="absolute inset-0 -translate-x-1 translate-y-1 rounded-xl border border-white/20 bg-slate-950/90 shadow" />
-              )}
-              {view.deckCount > 1 && (
-                <div className="absolute inset-0 -translate-x-0.5 translate-y-0.5 rounded-xl border border-white/30 bg-slate-900/90 shadow" />
-              )}
-              <div className="relative flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-xs font-bold text-white shadow-xl">
-                <span className="text-[10px] uppercase tracking-wider text-slate-300">Nọc</span>
-                <span className="mt-1 text-base font-black text-amber-300">{view.deckCount}</span>
-              </div>
-            </div>
-            <span className="text-[10px] font-medium text-white/75">Bài rút</span>
+    <div className="relative flex h-full w-full flex-col items-center justify-between pt-16 pb-4 sm:pt-20 sm:pb-6">
+      {/* Draw Pile in top-left corner so it never overlaps players */}
+      <div className="absolute left-4 top-4 z-20 flex flex-col items-center gap-1 sm:left-7 sm:top-5">
+        <div className="relative h-24 w-16">
+          {view.deckCount > 2 && (
+            <div className="pointer-events-none absolute inset-0 -translate-x-1 translate-y-1 rounded-xl border border-white/20 bg-slate-950/90 shadow" />
+          )}
+          {view.deckCount > 1 && (
+            <div className="pointer-events-none absolute inset-0 -translate-x-0.5 translate-y-0.5 rounded-xl border border-white/30 bg-slate-900/90 shadow" />
+          )}
+          <div className="relative flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-xs font-bold text-white shadow-xl">
+            <span className="text-[10px] uppercase tracking-wider text-slate-300">Nọc</span>
+            <span className="mt-1 text-base font-black text-amber-300">{view.deckCount}</span>
           </div>
+        </div>
+        <span className="text-[10px] font-medium text-white/75">Bài rút</span>
+      </div>
 
+      {/* Center of the table: Die + Discard Pile */}
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <div className="flex items-center justify-center gap-5 sm:gap-7">
           {/* Center 3D-looking Die */}
           <div className="flex flex-col items-center gap-1.5">
             <div
