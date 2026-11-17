@@ -1,11 +1,11 @@
 'use client';
 
-import {
-  formatPlayingCard,
-  type BlackjackAction,
-  type BlackjackPlayerStatus,
-  type BlackjackPlayerView,
+import type {
+  BlackjackAction,
+  BlackjackPlayerStatus,
+  BlackjackPlayerView,
 } from '@boardgame/shared';
+import { PlayingCardTile } from './PlayingCardTile';
 
 interface BlackjackBoardProps {
   view: BlackjackPlayerView;
@@ -36,20 +36,13 @@ export function BlackjackBoard({ view, onAction }: BlackjackBoardProps) {
           >
             <p className="text-xs font-semibold text-white">{p.username}</p>
             <p className="mt-1 text-[11px] text-amber-300">{STATUS_LABELS[p.status]}</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-1">
+            <div className="mt-2 flex flex-wrap justify-center -space-x-2 pt-2">
               {p.revealedHand
                 ? p.revealedHand.map((c, idx) => (
-                    <span
-                      key={idx}
-                      className="rounded bg-white px-1.5 py-0.5 text-xs font-bold text-slate-900"
-                    >
-                      {formatPlayingCard(c)}
-                    </span>
+                    <PlayingCardTile key={idx} card={c} size="sm" />
                   ))
                 : Array.from({ length: p.cardCount }).map((_, idx) => (
-                    <span key={idx} className="text-lg">
-                      🂠
-                    </span>
+                    <PlayingCardTile key={idx} faceDown size="sm" />
                   ))}
             </div>
             {p.revealedScore !== null && (
@@ -62,7 +55,7 @@ export function BlackjackBoard({ view, onAction }: BlackjackBoardProps) {
       </div>
 
       {/* My hand & controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
         <div>
           <p className="mb-1.5 text-xs text-slate-400">
             Bài của bạn — Tổng điểm:{' '}
@@ -73,14 +66,9 @@ export function BlackjackBoard({ view, onAction }: BlackjackBoardProps) {
             </span>
             {isMyTurn ? ' · ĐẾN LƯỢT BẠN' : ''}
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-end -space-x-2 pt-5">
             {view.myHand.map((c, idx) => (
-              <div
-                key={idx}
-                className="flex h-16 w-12 items-center justify-center rounded-xl border-2 border-emerald-400 bg-white text-base font-bold text-slate-900"
-              >
-                {formatPlayingCard(c)}
-              </div>
+              <PlayingCardTile key={idx} card={c} highlighted={isMyTurn} />
             ))}
           </div>
         </div>

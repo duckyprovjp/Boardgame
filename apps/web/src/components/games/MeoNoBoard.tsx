@@ -30,6 +30,25 @@ export function MeoNoBoard({ view, onAction }: MeoNoBoardProps) {
     (p) => p.id !== view.myPlayerId && p.alive && p.cardCount > 0,
   );
 
+  const isCardPlayable = (card: MeoNoCard): boolean => {
+    if (isFavorTargetMe) return true;
+    if (view.phase === 'nope_window' && card.kind === 'nope' && Boolean(nopeCardAction)) {
+      return true;
+    }
+    if (!isMyTurn) return false;
+    if (card.kind === 'favor' && otherAliveWithCards.length > 0) return true;
+    if (view.legalActions.some((a) => a.type === 'PLAY_CARD' && a.cardId === card.id)) return true;
+    if (
+      (card.kind === 'combo_watermelon' ||
+        card.kind === 'combo_potato' ||
+        card.kind === 'combo_rainbow') &&
+      view.legalActions.some((a) => a.type === 'PLAY_PAIR' && a.cardKind === card.kind)
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   const handleCardClick = (card: MeoNoCard) => {
     if (isFavorTargetMe) {
       onAction({ type: 'GIVE_FAVOR', cardId: card.id });
@@ -80,31 +99,49 @@ export function MeoNoBoard({ view, onAction }: MeoNoBoardProps) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Status & Deck */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-        <div className="space-y-1 text-xs">
-          <p className="text-sm font-semibold text-white">
-            Nọc bài còn: <span className="text-emerald-300">{view.deckCount} lá</span>
-          </p>
-          <p className="text-slate-300">Số lượt phải rút: {view.turnsRemaining}</p>
-          {view.topDiscard && (
-            <p className="text-slate-400">
-              Lá bỏ gần nhất: {MEO_NO_CARDS[view.topDiscard.kind].emoji}{' '}
+    <div className="flex h-full w-full flex-col items-center justify-between gap-4 py-4">
+      {/* Center Piles: Deck + Discard + Status */}
+      <div className="flex flex-wrap items-center justify-center gap-6">
+        <button
+          type="button"
+          disabled={!canDraw}
+          onClick={() => onAction({ type: 'DRAW_CARD' })}
+          className={`flex h-24 w-16 flex-col items-center justify-center rounded-xl border-2 border-white/40 bg-slate-950/90 text-xs font-bold text-white shadow-xl transition-all duration-150 ${
+            canDraw ? 'cursor-pointer ring-2 ring-rose-400 hover:-translate-y-1.5' : 'opacity-75'
+          }`}
+        >
+          <span className="text-[10px] uppercase tracking-wider text-slate-300">Nọc</span>
+          <span className="mt-1 text-base font-black text-emerald-300">{view.deckCount}</span>
+          {canDraw && <span className="mt-1 text-[9px] text-rose-300">Rút bài</span>}
+        </button>
+
+        {view.topDiscard ? (
+          <div className="flex h-24 w-16 rotate-[4deg] flex-col items-center justify-center rounded-xl border-2 border-amber-300/60 bg-slate-900 p-1.5 text-center shadow-2xl">
+            <span className="text-xl">{MEO_NO_CARDS[view.topDiscard.kind].emoji}</span>
+            <span className="mt-1 line-clamp-2 text-[10px] font-bold leading-tight text-white">
               {MEO_NO_CARDS[view.topDiscard.kind].name}
-            </p>
+            </span>
+          </div>
+        ) : (
+          <div className="flex h-24 w-16 items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900/40 text-[10px] text-slate-500">
+            Bỏ bài
+          </div>
+        )}
+
+        <div className="space-y-1 text-left text-xs">
+          <p className="font-semibold text-white">
+            Lượt phải rút: <span className="text-amber-300">{view.turnsRemaining}</span>
+          </p>
+          {canDraw && (
+            <button
+              type="button"
+              onClick={() => onAction({ type: 'DRAW_CARD' })}
+              className="cursor-pointer rounded-xl bg-rose-500 px-4 py-1.5 text-xs font-bold text-white shadow-lg hover:bg-rose-400"
+            >
+              Rút bài kết thúc lượt
+            </button>
           )}
         </div>
-
-        {canDraw && (
-          <button
-            type="button"
-            onClick={() => onAction({ type: 'DRAW_CARD' })}
-            className="rounded-xl bg-rose-500 px-5 py-2.5 text-xs font-bold text-white hover:bg-rose-400"
-          >
-            Rút bài kết thúc lượt
-          </button>
-        )}
       </div>
 
       {/* Private See-the-Future peek */}
@@ -232,22 +269,33 @@ export function MeoNoBoard({ view, onAction }: MeoNoBoardProps) {
         </div>
       )}
 
-      {/* Hand */}
-      <div>
-        <p className="mb-2 text-xs text-slate-400">Bài của bạn ({view.myHand.length} lá)</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* Fanned Hand at bottom */}
+      <div className="flex w-full flex-col items-center gap-2 px-2 pb-2">
+        <p className="text-[11px] font-medium text-slate-300">
+          Bài của bạn ({view.myHand.length} lá)
+        </p>
+        <div className="flex max-w-full flex-wrap items-end justify-center gap-y-2 pt-6 -space-x-3 sm:-space-x-2">
           {view.myHand.map((card) => {
             const meta = MEO_NO_CARDS[card.kind];
+            const playable = isCardPlayable(card);
             return (
               <button
                 key={card.id}
                 type="button"
+                aria-disabled={!playable}
+                title={`${meta.name}: ${meta.description}`}
                 onClick={() => handleCardClick(card)}
-                className="flex flex-col items-start rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-left transition hover:border-emerald-400"
+                className={`relative flex h-28 w-20 flex-col items-center justify-between rounded-xl border-2 bg-slate-900 p-2 text-center shadow-lg transition-all duration-150 ease-out sm:h-32 sm:w-24 hover:z-30 hover:scale-105 hover:shadow-2xl ${
+                  playable
+                    ? '-translate-y-1.5 cursor-pointer border-emerald-400 ring-1 ring-emerald-400/50 hover:-translate-y-6 hover:border-amber-300'
+                    : 'cursor-default border-slate-600/80 opacity-80 hover:-translate-y-4 hover:border-white/60 hover:opacity-100'
+                }`}
               >
-                <span className="text-xl">{meta.emoji}</span>
-                <span className="mt-1 text-xs font-bold text-white">{meta.name}</span>
-                <span className="mt-0.5 text-[10px] leading-tight text-slate-400">
+                <span className="text-2xl leading-none">{meta.emoji}</span>
+                <span className="line-clamp-2 text-[11px] font-bold leading-tight text-white">
+                  {meta.name}
+                </span>
+                <span className="line-clamp-2 text-[9px] leading-tight text-slate-400">
                   {meta.description}
                 </span>
               </button>

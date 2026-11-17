@@ -190,24 +190,28 @@ export function ColorUnoBoard({ view, onAction }: ColorUnoBoardProps) {
         </div>
 
         {/* Fanned Hand */}
-        <div className="flex max-w-full flex-wrap justify-center -space-x-2 sm:-space-x-1">
+        <div className="flex max-w-full flex-wrap items-end justify-center gap-y-2 pt-6 -space-x-3 sm:-space-x-2">
           {view.myHand.map((card) => {
             const playable = isCardPlayable(card.id);
+            const label = formatUnoCardLabel(card);
             return (
               <button
                 key={card.id}
                 type="button"
-                disabled={!playable}
+                aria-disabled={!playable}
+                title={label}
                 onClick={() => handleCardClick(card)}
-                className={`flex h-20 w-14 flex-col items-center justify-center rounded-xl border-2 p-1 text-center text-[11px] font-black shadow-lg transition ${
+                className={`relative flex h-24 w-16 flex-col items-center justify-center rounded-xl border-2 p-1.5 text-center text-xs font-black shadow-lg transition-all duration-150 ease-out sm:h-28 sm:w-[4.5rem] hover:z-30 hover:scale-105 hover:shadow-2xl ${
                   COLOR_STYLES[card.color]
                 } ${
                   playable
-                    ? '-translate-y-2 cursor-pointer ring-2 ring-white hover:-translate-y-4'
-                    : 'cursor-not-allowed opacity-45'
+                    ? '-translate-y-1.5 cursor-pointer ring-2 ring-white hover:-translate-y-6 hover:ring-amber-300'
+                    : 'cursor-default opacity-70 brightness-90 hover:-translate-y-4 hover:opacity-100 hover:brightness-100 hover:ring-2 hover:ring-white/60'
                 }`}
               >
-                {formatUnoCardLabel(card)}
+                <span className="pointer-events-none rounded-lg border border-white/25 bg-black/10 px-1 py-2 leading-tight">
+                  {label}
+                </span>
               </button>
             );
           })}

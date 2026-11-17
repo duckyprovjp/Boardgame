@@ -33,14 +33,15 @@ interface TableShellProps {
 }
 
 /**
- * Computes percentage (x%, y%) coordinates on an ellipse, placing hero at bottom-center (50%, 88%).
+ * Computes percentage (x%, y%) coordinates on an ellipse, placing hero at bottom-left (16%, 86%)
+ * so the bottom-center area remains clear for the fanned card hand.
  */
 export function getEllipseSeatCoords(
   indexInOrder: number,
   totalSeats: number,
 ): { leftPct: number; topPct: number } {
   if (indexInOrder === 0) {
-    return { leftPct: 50, topPct: 87 };
+    return { leftPct: 16, topPct: 86 };
   }
   const oppCount = Math.max(1, totalSeats - 1);
   // Distribute opponents along the upper arc from left (195 deg) through top (270 deg) to right (345 deg)
@@ -159,13 +160,18 @@ export function TableShell({
               >
                 {/* Mini fanned face-down cards for opponents */}
                 {!isHero && typeof seat.cardCount === 'number' && seat.cardCount > 0 && (
-                  <div className="mb-1 flex -space-x-2">
-                    {Array.from({ length: Math.min(5, seat.cardCount) }).map((_, ci) => (
-                      <div
-                        key={ci}
-                        className="h-6 w-4 rounded border border-white/30 bg-slate-900 shadow"
-                      />
-                    ))}
+                  <div className="mb-1 flex items-end -space-x-2.5">
+                    {Array.from({ length: Math.min(7, seat.cardCount) }).map((_, ci, arr) => {
+                      const mid = (arr.length - 1) / 2;
+                      const deg = (ci - mid) * 6;
+                      return (
+                        <div
+                          key={ci}
+                          style={{ transform: `rotate(${deg}deg)` }}
+                          className="h-7 w-5 rounded border border-white/50 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md"
+                        />
+                      );
+                    })}
                   </div>
                 )}
 

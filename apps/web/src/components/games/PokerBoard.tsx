@@ -1,10 +1,7 @@
 'use client';
 
-import {
-  formatPlayingCard,
-  type PokerAction,
-  type PokerPlayerView,
-} from '@boardgame/shared';
+import type { PokerAction, PokerPlayerView } from '@boardgame/shared';
+import { PlayingCardTile } from './PlayingCardTile';
 
 interface PokerBoardProps {
   view: PokerPlayerView;
@@ -34,19 +31,17 @@ export function PokerBoard({ view, onAction }: PokerBoardProps) {
           </span>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
           {[0, 1, 2, 3, 4].map((slot) => {
             const card = view.communityCards[slot];
-            return (
+            return card ? (
+              <PlayingCardTile key={slot} card={card} />
+            ) : (
               <div
                 key={slot}
-                className={`flex h-20 w-14 items-center justify-center rounded-xl border-2 text-lg font-bold ${
-                  card
-                    ? 'border-slate-200 bg-white text-slate-900'
-                    : 'border-dashed border-slate-700 bg-slate-900/50 text-slate-600'
-                }`}
+                className="flex h-20 w-14 items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900/50 text-lg font-bold text-slate-600 sm:h-24 sm:w-16"
               >
-                {card ? formatPlayingCard(card) : '?'}
+                ?
               </div>
             );
           })}
@@ -58,19 +53,14 @@ export function PokerBoard({ view, onAction }: PokerBoardProps) {
       </div>
 
       {/* My Hole Cards & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
         <div>
           <p className="mb-1.5 text-xs text-slate-400">
             2 lá tẩy của bạn{isMyTurn ? ' — ĐẾN LƯỢT BẠN' : ''}
           </p>
-          <div className="flex gap-2">
+          <div className="flex items-end -space-x-2 pt-4">
             {view.myHoleCards.map((c, idx) => (
-              <div
-                key={idx}
-                className="flex h-16 w-12 items-center justify-center rounded-xl border-2 border-emerald-400 bg-white text-base font-bold text-slate-900"
-              >
-                {formatPlayingCard(c)}
-              </div>
+              <PlayingCardTile key={idx} card={c} highlighted={isMyTurn} />
             ))}
           </div>
         </div>
